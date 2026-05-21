@@ -50,12 +50,16 @@ function contentToText(content: unknown): string {
 }
 
 export async function onRequest(context: any) {
+  const startTime = Date.now();
+  logger.log(`[history] start: ${new Date(startTime).toISOString()}`);
+
   const conversationId: string = context.conversation_id ?? '';
   const store = context.store ?? null;
 
   logger.log('conversationId:', conversationId);
 
   if (!store || !conversationId) {
+    logger.log(`[history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ conversation_id: conversationId, messages: [] });
   }
 
@@ -82,10 +86,11 @@ export async function onRequest(context: any) {
       });
     }
 
-    logger.log(`loaded ${messages.length} messages`);
+    logger.log(`[history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ conversation_id: conversationId, messages });
   } catch (e) {
     logger.error('failed to get messages:', e);
+    logger.log(`[history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ conversation_id: conversationId, messages: [] });
   }
 }

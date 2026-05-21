@@ -26,6 +26,9 @@ export interface StreamCallbacks {
 
 /** 获取当前 conversation 的历史消息，用于刷新页面后恢复聊天窗口。 */
 export async function fetchConversationHistory(conversationId: string): Promise<Message[]> {
+  const startTime = performance.now();
+  console.log(`[history] start: ${new Date().toISOString()}`);
+
   for (let attempt = 0; attempt < 3; attempt++) {
     try {
       const res = await fetch(API.history, {
@@ -43,14 +46,23 @@ export async function fetchConversationHistory(conversationId: string): Promise<
         continue;
       }
 
-      if (!res.ok) return [];
+      if (!res.ok) {
+        console.log(`[history] end: ${new Date().toISOString()}, total: ${(performance.now() - startTime).toFixed(2)}ms`);
+        return [];
+      }
 
       const data = await res.json().catch(() => null) as { messages?: Message[] } | null;
-      return Array.isArray(data?.messages) ? data.messages : [];
+      const messages = Array.isArray(data?.messages) ? data.messages : [];
+
+      console.log(`[history] end: ${new Date().toISOString()}, total: ${(performance.now() - startTime).toFixed(2)}ms`);
+      return messages;
     } catch {
+      console.log(`[history] end: ${new Date().toISOString()}, total: ${(performance.now() - startTime).toFixed(2)}ms`);
       return [];
     }
   }
+
+  console.log(`[history] end: ${new Date().toISOString()}, total: ${(performance.now() - startTime).toFixed(2)}ms`);
   return [];
 }
 

@@ -222,7 +222,7 @@
 .op  { color: #8a7a5a; }               /* operators / punctuation */
 .va  { color: #d4a85a; }               /* variables / params */
 
-/* ── Section divider (between tools & store) ──────────────── */
+/* ── Section divider (reserved for future use) ───────────────── */
 .sectionGap {
   height: 20px;
 }
