@@ -12,11 +12,13 @@
  *   context.tools           — EdgeOne platform sandbox toolkit
  */
 
-import { query, createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
-import { buildTools } from '@edgeone/pages-agent-toolkit';
+import { query, createSdkMcpServer, tool as defineClaudeTool } from '@anthropic-ai/claude-agent-sdk';
+import type { SdkMcpToolDefinition } from '@anthropic-ai/claude-agent-sdk';
+import { z } from 'zod';
 import { resolveModelName, collectGatewayEnv } from '../_model';
 import { createLogger } from '../_logger';
 
+const MCP_SERVER_NAME = 'edgeone';
 const logger = createLogger('chat');
 
 const SYSTEM_PROMPT =
@@ -34,7 +36,89 @@ const SYSTEM_PROMPT =
   'Do NOT use any tools other than those listed above.';
 
 
-function buildAgentOptions(opts?: { claudeSessionStore?: any; mcpServer?: any; mcpServerName?: string; allowedTools?: string[] }) {
+type PlatformTool = {
+  name?: string;
+  description?: string;
+  function?: { name?: string; description?: string };
+  execute?: (args: Record<string, any>) => unknown | Promise<unknown>;
+  handler?: (args: Record<string, any>) => unknown | Promise<unknown>;
+  invoke?: (args: Record<string, any>) => unknown | Promise<unknown>;
+};
+
+type ClaudeMcpTool = SdkMcpToolDefinition<any>;
+
+const TOOL_INPUT_SCHEMAS = {
+  commands: {
+    cmd: z.string().describe('Shell command to execute'),
+    cwd: z.string().describe('Working directory').optional(),
+  },
+  files: {
+    op: z.enum(['read', 'write', 'list', 'exists', 'remove', 'makeDir']).describe('File operation'),
+    path: z.string().describe('File or directory path'),
+    content: z.string().describe('Content for write').optional(),
+  },
+  browser: {
+    op: z.enum(['fetch', 'screenshot', 'click', 'type', 'evaluate']).describe('Browser operation'),
+    url: z.string().describe('Target URL').optional(),
+    selector: z.string().describe('CSS selector').optional(),
+    text: z.string().describe('Text to type').optional(),
+    script: z.string().describe('JavaScript to evaluate').optional(),
+  },
+  code_interpreter: {
+    language: z.enum(['python', 'javascript', 'r', 'bash']).describe('Language to execute'),
+    code: z.string().describe('Code to execute'),
+  },
+} satisfies Record<string, Record<string, z.ZodTypeAny>>;
+
+function stringifyToolResult(result: unknown): string {
+  if (typeof result === 'string') return result;
+  const json = JSON.stringify(result, null, 2);
+  return typeof json === 'string' ? json : String(result);
+}
+
+function buildEdgeOneMcpTools(context: any): { tools: ClaudeMcpTool[]; allowedTools: string[] } {
+  const platformTools: PlatformTool[] = context.tools?.all?.() ?? [];
+  const tools: ClaudeMcpTool[] = [];
+
+  logger.log('[tools] platform tools count:', platformTools.length);
+
+  for (const item of platformTools) {
+    const name = item.name || item.function?.name;
+    const execute = item.execute || item.handler || item.invoke;
+    const inputSchema = name ? TOOL_INPUT_SCHEMAS[name as keyof typeof TOOL_INPUT_SCHEMAS] : undefined;
+
+    if (!name || !inputSchema || typeof execute !== 'function') {
+      logger.log('[tools] skipped unsupported platform tool:', name ?? '<unknown>');
+      continue;
+    }
+
+    const mcpTool = defineClaudeTool(
+      name,
+      item.description || item.function?.description || `EdgeOne platform tool: ${name}`,
+      inputSchema,
+      async (args) => {
+        try {
+          const result = await execute.call(item, args as Record<string, any>);
+          return { content: [{ type: 'text' as const, text: stringifyToolResult(result) }] };
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          return { content: [{ type: 'text' as const, text: message }], isError: true };
+        }
+      },
+    ) as ClaudeMcpTool;
+
+    tools.push(mcpTool);
+    logger.log(`[tools] registered platform tool: ${name}`);
+  }
+
+  return {
+    tools,
+    allowedTools: tools.map((item) => `mcp__${MCP_SERVER_NAME}__${item.name}`),
+  };
+}
+
+
+function buildAgentOptions(opts?: { claudeSessionStore?: any; mcpServer?: any; allowedTools?: string[] }) {
   const options: Record<string, any> = {
     model: resolveModelName(),
     systemPrompt: SYSTEM_PROMPT,
@@ -49,8 +133,8 @@ function buildAgentOptions(opts?: { claudeSessionStore?: any; mcpServer?: any; m
   if (opts?.claudeSessionStore) {
     options.sessionStore = opts.claudeSessionStore;
   }
-  if (opts?.mcpServer && opts?.mcpServerName) {
-    options.mcpServers = { [opts.mcpServerName]: opts.mcpServer };
+  if (opts?.mcpServer) {
+    options.mcpServers = { [MCP_SERVER_NAME]: opts.mcpServer };
   }
   return options;
 }
@@ -65,16 +149,6 @@ function extractToolName(rawName: string): string {
     return rawName.split('__').pop() || rawName;
   }
   return rawName;
-}
-
-function safeJsonPreview(value: unknown, maxLength = 800): string {
-  try {
-    const text = JSON.stringify(value);
-    if (!text) return String(value);
-    return text.length > maxLength ? `${text.slice(0, maxLength)}...<truncated>` : text;
-  } catch {
-    return String(value);
-  }
 }
 
 export async function onRequest(context: any) {
@@ -103,20 +177,15 @@ export async function onRequest(context: any) {
     catch (e) { logger.error('[store] failed to save user message:', e); }
   }
 
-  // 使用 @edgeone/pages-agent-toolkit 构建 Claude SDK MCP 工具
-  const tools = buildTools('claude-sdk', context.tools);
-  const edgeoneMcp = tools.toClaudeMcpServer();
-
+  // 构建 EdgeOne 平台工具 → Claude Agent SDK MCP server
+  const { tools: mcpTools, allowedTools } = buildEdgeOneMcpTools(context);
   const mcpServer = createSdkMcpServer({
-    name: edgeoneMcp.name,
-    tools: edgeoneMcp.tools,
+    name: MCP_SERVER_NAME,
+    tools: mcpTools,
     alwaysLoad: true,
   });
 
-  const { allowedTools } = edgeoneMcp;
-  logger.log('[tools] registered EdgeOne MCP tools:', allowedTools);
-
-  const options = buildAgentOptions({ claudeSessionStore, mcpServer, mcpServerName: edgeoneMcp.name, allowedTools });
+  const options = buildAgentOptions({ claudeSessionStore, mcpServer, allowedTools });
   const encoder = new TextEncoder();
   let stopped = false;
   let fullAssistantText = '';
@@ -156,24 +225,8 @@ export async function onRequest(context: any) {
                   controller.enqueue(encoder.encode(sseFrame('text_delta', { delta })));
                 }
               } else if (block.type === 'tool_use') {
-                const rawToolName = block.name || '';
-                const toolName = extractToolName(rawToolName);
-                const toolId = 'id' in block ? block.id : undefined;
-                const toolInput = 'input' in block ? block.input : undefined;
-
-                logger.log(
-                  '[tools] call requested',
-                  {
-                    cid: conversationId,
-                    blockIndex: idx,
-                    tool: toolName,
-                    rawTool: rawToolName,
-                    toolId,
-                    inputKeys: toolInput && typeof toolInput === 'object' ? Object.keys(toolInput) : [],
-                    inputPreview: safeJsonPreview(toolInput),
-                  },
-                );
-
+                const toolName = extractToolName(block.name || '');
+                logger.log(`[stream] tool_called: ${toolName}`);
                 controller.enqueue(encoder.encode(sseFrame('tool_called', { tool: toolName })));
               }
             }
