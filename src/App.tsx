@@ -1,10 +1,11 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Message, ToolLampState } from './types';
 import { fetchConversationHistory, sendMessageStream, stopAgent } from './api';
+import type { RawSseEvent } from './api';
 import ToolIndicators from './components/ToolIndicators';
 import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
-import CodeViewer from './components/CodeViewer';
+import DebugPanel from './components/DebugPanel';
 import styles from './App.module.css';
 
 const INITIAL_LAMPS: ToolLampState[] = [
@@ -31,6 +32,8 @@ export default function App() {
   const [loading, setLoading]   = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
 
+  const [debugEvents, setDebugEvents] = useState<RawSseEvent[]>([]);
+
   const botMsgIdRef = useRef<string>('');
   const abortCtrlRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string>(getOrCreateConversationId());
@@ -51,6 +54,17 @@ export default function App() {
       prev.map(m =>
         m.id === botMsgIdRef.current
           ? { ...m, content: updater(m.content) }
+          : m
+      )
+    );
+  }, []);
+
+  /** Append an image to the current bot message. */
+  const appendBotImage = useCallback((base64: string) => {
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === botMsgIdRef.current
+          ? { ...m, images: [...(m.images || []), base64] }
           : m
       )
     );
@@ -101,6 +115,14 @@ export default function App() {
         }, 1000);
       },
 
+      onImage(base64) {
+        appendBotImage(base64);
+      },
+
+      onRawEvent(event) {
+        setDebugEvents(prev => [...prev, event]);
+      },
+
       onDone: finishStream,
 
       onError() {
@@ -110,7 +132,7 @@ export default function App() {
     }, conversationIdRef.current);
 
     abortCtrlRef.current = ctrl;
-  }, [updateBotMessage, finishStream]);
+  }, [updateBotMessage, appendBotImage, finishStream]);
 
   const handleClearHistory = useCallback(() => {
     localStorage.removeItem(CONVERSATION_ID_STORAGE_KEY);
@@ -158,7 +180,7 @@ export default function App() {
         </div>
 
         <div className={styles.codePanel}>
-          <CodeViewer />
+          <DebugPanel events={debugEvents} onClear={() => setDebugEvents([])} />
         </div>
       </div>
     </div>

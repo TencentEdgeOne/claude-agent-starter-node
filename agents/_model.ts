@@ -52,7 +52,7 @@
  * 所有函数接收 context.env 作为参数，不再直接读取 process.env。
  */
 
-const DEFAULT_MODEL = '@Pages/hy3-preview';
+const DEFAULT_MODEL = process.env.AI_GATEWAY_MODEL || '@Pages/hy3-preview';
 
 export function resolveModelName(env: Record<string, string | undefined>): string {
   return env.AI_GATEWAY_MODEL || DEFAULT_MODEL;

@@ -17,11 +17,20 @@ export const API = {
   history: '/history',
 } as const;
 
+export interface RawSseEvent {
+  eventType: string;
+  data: unknown;
+  raw: string;        // 原始 data 字符串
+  timestamp: number;
+}
+
 export interface StreamCallbacks {
   onTextDelta: (delta: string) => void;
   onToolCalled: (toolName: string) => void;
+  onImage: (base64: string) => void;
   onDone: () => void;
   onError: (err: Error) => void;
+  onRawEvent?: (event: RawSseEvent) => void;
 }
 
 /** 获取当前 conversation 的历史消息，用于刷新页面后恢复聊天窗口。 */
@@ -158,12 +167,26 @@ function dispatchSseChunk(part: string, cb: StreamCallbacks, markDone: () => voi
 
   try {
     const parsed = JSON.parse(data);
+
+    // 调试：将所有原始事件推送给 onRawEvent
+    if (cb.onRawEvent) {
+      cb.onRawEvent({
+        eventType,
+        data: parsed,
+        raw: data,
+        timestamp: Date.now(),
+      });
+    }
+
     switch (eventType) {
       case 'text_delta':
         cb.onTextDelta(parsed.delta);
         break;
       case 'tool_called':
         cb.onToolCalled(parsed.tool);
+        break;
+      case 'image':
+        if (parsed.base64) cb.onImage(parsed.base64);
         break;
       case 'error':
         cb.onError(new Error(parsed.message || 'agent returned error'));
@@ -174,7 +197,15 @@ function dispatchSseChunk(part: string, cb: StreamCallbacks, markDone: () => voi
         break;
     }
   } catch {
-    // 忽略解析失败的事件
+    // 解析失败也推给 debug
+    if (cb.onRawEvent) {
+      cb.onRawEvent({
+        eventType,
+        data: null,
+        raw: data,
+        timestamp: Date.now(),
+      });
+    }
   }
 }
 

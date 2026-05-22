@@ -97,7 +97,8 @@
   display: flex;
   flex-direction: column;
   min-width: 0;
-  overflow: hidden;
+  min-height: 0;
+  overflow: visible;
 }
 
 /* ── Header (inside chat panel) ───────────────────────────── */

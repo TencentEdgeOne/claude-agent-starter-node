@@ -53,8 +53,9 @@ function normalizeMarkdown(content: string): string {
 export default function ChatBubble({ message }: Props) {
   const isUser = message.role === 'user';
   const content = isUser ? message.content : normalizeMarkdown(message.content);
+  const images = message.images || [];
 
-  if (!isUser && !message.content) return null;
+  if (!isUser && !message.content && images.length === 0) return null;
 
   return (
     <div className={`${styles.row} ${isUser ? styles.userRow : styles.botRow}`}>
@@ -64,6 +65,18 @@ export default function ChatBubble({ message }: Props) {
           ? content
           : <div className={styles.markdown}><Markdown remarkPlugins={[remarkGfm]}>{content}</Markdown></div>
         }
+        {images.length > 0 && (
+          <div className={styles.imageList}>
+            {images.map((base64, idx) => (
+              <img
+                key={idx}
+                className={styles.image}
+                src={`data:image/png;base64,${base64}`}
+                alt={`tool result ${idx + 1}`}
+              />
+            ))}
+          </div>
+        )}
         <span className={styles.time}>
           {new Date(message.timestamp).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}
         </span>

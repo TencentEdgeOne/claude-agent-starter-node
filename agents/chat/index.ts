@@ -145,6 +145,37 @@ export async function onRequest(context: any) {
         for await (const msg of q) {
           if (signal?.aborted) { stopped = true; break; }
 
+          // 拦截 tool_result 中的 base64Image，作为 image 事件推送给前端
+          if (msg.type === 'user') {
+            try {
+              const toolResults = (msg as any).tool_use_result ?? (msg as any).message?.content ?? [];
+              const resultArr = Array.isArray(toolResults) ? toolResults : [toolResults];
+              for (const item of resultArr) {
+                // tool_use_result 格式: [{type: "text", text: "{\"base64Image\": \"...\"}"}]
+                const text = typeof item === 'string' ? item : (item?.text ?? item?.content ?? '');
+                if (typeof text === 'string' && text.includes('base64Image')) {
+                  try {
+                    const parsed = JSON.parse(text);
+                    if (parsed?.base64Image) {
+                      logger.log('[image] extracted base64Image from tool_result, size:', parsed.base64Image.length);
+                      controller.enqueue(encoder.encode(sseFrame('image', { base64: parsed.base64Image })));
+                    }
+                  } catch { /* not valid JSON, skip */ }
+                }
+              }
+            } catch (e) {
+              logger.error('[image] failed to extract base64Image:', e);
+            }
+          }
+
+          // 调试：推送所有 message 类型让前端可观测
+          if (msg.type !== 'assistant' && msg.type !== 'result') {
+            controller.enqueue(encoder.encode(sseFrame('debug_msg', {
+              msgType: msg.type,
+              preview: safeJsonPreview(msg, 4000),
+            })));
+          }
+
           if (msg.type === 'assistant') {
             const blocks = msg.message?.content ?? [];
             for (let idx = 0; idx < blocks.length; idx++) {
@@ -180,6 +211,13 @@ export async function onRequest(context: any) {
                 );
 
                 controller.enqueue(encoder.encode(sseFrame('tool_called', { tool: toolName })));
+              } else {
+                // 其他类型 block（如 image）：以 debug_block 事件原样推送给前端
+                controller.enqueue(encoder.encode(sseFrame('debug_block', {
+                  blockIndex: idx,
+                  blockType: block.type,
+                  block: safeJsonPreview(block, 4000),
+                })));
               }
             }
           } else if (msg.type === 'result') {
