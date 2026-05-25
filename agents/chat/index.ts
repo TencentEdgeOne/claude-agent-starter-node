@@ -62,7 +62,7 @@ function sseFrame(event: string, data: Record<string, unknown>): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
 
-/** 从 MCP 工具全名中提取短名（如 mcp__edgeone__commands → commands） */
+/** Extract short name from MCP tool full name (e.g. mcp__edgeone__commands → commands) */
 function extractToolName(rawName: string): string {
   if (rawName.includes('__')) {
     return rawName.split('__').pop() || rawName;
@@ -141,17 +141,24 @@ export async function onRequest(context: any) {
           options: { ...options, abortController },
         });
         const sentTextLenByBlock = new Map<number, number>();
+        let lastMsgType = '';
 
         for await (const msg of q) {
           if (signal?.aborted) { stopped = true; break; }
 
-          // 拦截 tool_result 中的 base64Image，作为 image 事件推送给前端
+          // New assistant message round detected: if previous was user (tool_result), reset counters
+          if (msg.type === 'assistant' && lastMsgType === 'user') {
+            sentTextLenByBlock.clear();
+          }
+          lastMsgType = msg.type;
+
+          // Intercept base64Image from tool_result and push as image event to frontend
           if (msg.type === 'user') {
             try {
               const toolResults = (msg as any).tool_use_result ?? (msg as any).message?.content ?? [];
               const resultArr = Array.isArray(toolResults) ? toolResults : [toolResults];
               for (const item of resultArr) {
-                // tool_use_result 格式: [{type: "text", text: "{\"base64Image\": \"...\"}"}]
+                // tool_use_result format: [{type: "text", text: "{\"base64Image\": \"...\"}"}]
                 const text = typeof item === 'string' ? item : (item?.text ?? item?.content ?? '');
                 if (typeof text === 'string' && text.includes('base64Image')) {
                   try {
@@ -168,7 +175,7 @@ export async function onRequest(context: any) {
             }
           }
 
-          // 调试：推送所有 message 类型让前端可观测
+          // Debug: push all message types for frontend observability
           if (msg.type !== 'assistant' && msg.type !== 'result') {
             controller.enqueue(encoder.encode(sseFrame('debug_msg', {
               msgType: msg.type,
@@ -212,7 +219,7 @@ export async function onRequest(context: any) {
 
                 controller.enqueue(encoder.encode(sseFrame('tool_called', { tool: toolName })));
               } else {
-                // 其他类型 block（如 image）：以 debug_block 事件原样推送给前端
+                // Other block types (e.g. image): push as debug_block event to frontend as-is
                 controller.enqueue(encoder.encode(sseFrame('debug_block', {
                   blockIndex: idx,
                   blockType: block.type,

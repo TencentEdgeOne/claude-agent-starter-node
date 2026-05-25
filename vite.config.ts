@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 
 export default defineConfig({
   plugins: [react()],
-  // @tencent/edgeone 是后端/部署依赖，前端不需要预优化
+  // @tencent/edgeone is a backend/deploy dependency, frontend does not need pre-optimization
   optimizeDeps: {
     exclude: ['@tencent/edgeone'],
   },
