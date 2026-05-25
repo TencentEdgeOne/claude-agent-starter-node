@@ -1,113 +1,107 @@
 # Claude Agent Starter
 
-基于 Anthropic Claude Agent SDK 的 EdgeOne 全栈项目模板。
+A full-stack EdgeOne Pages Agent template powered by Anthropic Claude Agent SDK.
 
-## 功能
+## Features
 
-- **SSE 流式聊天**：逐 token 推送 `text_delta`，命中工具推 `tool_called`
-- **会话持久化**：通过 `claude_session_store()` 保存 Claude transcript，支持跨请求上下文恢复
-- **历史恢复**：刷新页面后 `/history` 自动恢复聊天记录
-- **停止生成**：前端 + 后端双重取消机制，真正中断 LLM 请求
-- **双语言后端**：Node.js (TypeScript) 和 Python 两套 EdgeOne Pages Functions 实现
-- 3 个内置工具灯泡（Bash / WebFetch / TodoWrite）会在 Claude 调用时点亮
+- **SSE Streaming Chat** — Token-by-token `text_delta` push; `tool_called` events when tools are invoked
+- **Session Persistence** — Saves Claude transcript via `context.store.claude_session_store()` for cross-request context restore
+- **EdgeOne Sandbox Tools** — commands, files, code_interpreter, browser — bridged to Claude Agent SDK via MCP Server
+- **Tool Indicators** — 4 animated tool lamps light up in real time when Claude calls a tool
+- **Observability** — EdgeOne runtime automatically injects tracing
 
-## 目录结构
+## Directory Structure
 
 ```
 claude-agent-starter/
-├── src/                    # React + Vite + TypeScript 前端
-│   ├── App.tsx             # 主应用（含 conversation_id 管理）
-│   ├── api.ts              # /chat, /stop, /history 请求封装
-│   └── components/         # ChatWindow, ChatInput, ToolIndicators 等
-├── agents/                 # Node/TS EdgeOne Pages Functions
-│   ├── chat/index.ts       # POST /chat — SSE 流式聊天
-│   ├── stop/index.ts       # POST /stop — 中断 agent
-│   ├── history/index.ts    # POST /history — 历史消息
-│   ├── _model.ts           # 模型与环境变量配置
-│   └── _logger.ts          # 日志工具
-├── agents-python/          # Python EdgeOne Pages Functions
-│   ├── chat/
-│   │   ├── index.py        # POST /chat — SSE 流式聊天
-│   │   ├── stop.py         # POST /chat/stop — 中断 agent
-│   │   ├── _model.py       # 模型与环境变量配置
-│   │   └── _logger.py      # 日志工具
-│   ├── history/
-│   │   └── index.py        # POST /history — 历史消息
-│   └── config.json         # 路由配置
-├── package.json            # 项目依赖（含 Claude JS SDK）
-├── requirements.txt        # Python agents 依赖
-├── .env.example            # 环境变量模板
-├── vite.config.ts          # Vite 配置
-├── tsconfig.json           # TypeScript 配置
-└── uv.toml                 # Python 包管理镜像配置
+├── src/                    # React + Vite + TypeScript frontend
+│   ├── App.tsx             # Main app (conversation_id management)
+│   ├── api.ts              # /chat, /stop, /history request wrappers
+│   └── components/         # ChatWindow, ChatInput, CodeViewer, ToolIndicators, etc.
+├── agents/                 # Node/TS EdgeOne Pages Functions (backend)
+│   ├── chat/index.ts       # POST /chat — SSE streaming chat
+│   ├── stop/index.ts       # POST /stop — abort active agent
+│   ├── history/index.ts    # POST /history — conversation history
+│   ├── _model.ts           # Model & environment variable config
+│   └── _logger.ts          # Logger utility
+├── package.json            # Dependencies (includes Claude Agent SDK)
+├── edgeone.json            # EdgeOne deployment config
+├── .env.example            # Environment variables template
+├── vite.config.ts          # Vite config
+├── tsconfig.json           # TypeScript config
+└── index.html              # Entry HTML
 ```
 
-## 快速开始
+> Files prefixed with `_` are private modules — not mapped as public routes by EdgeOne.
 
-### 1) 配置环境变量
+## Quick Start
 
-```bash
-cp .env.example .env
-# 编辑 .env，填入 API key
-```
+### 1. Configure Environment Variables
 
-支持两种 provider：
-- **anthropic_official**：直连 Anthropic API（推荐）
-- **ai_gate**：通过 AI 网关（需兼容 Anthropic Messages API）
+The project currently uses `AI_GATEWAY_*` variables:
 
-### 2) 安装依赖
+| Variable | Required | Description |
+|----------|----------|-------------|
+| `AI_GATEWAY_API_KEY` | Yes | AI Gateway API key |
+| `AI_GATEWAY_BASE_URL` | Yes | AI Gateway base URL (must be Anthropic Messages API compatible) |
+| `AI_GATEWAY_MODEL` | No | Model name (default: `@Pages/hy3-preview`) |
+
+### 2. Install Dependencies
 
 ```bash
 npm install
 ```
 
-Python agents 另需：
-```bash
-pip install -r requirements.txt
-```
-
-### 3) 本地开发
+### 3. Local Development
 
 ```bash
-# EdgeOne Pages 本地开发（推荐，同时启动前后端）
-npm run dev:agents
-
-# 或仅启动前端 Vite dev server
-npm run dev
+edgeone pages dev
 ```
 
-### 4) 前提条件
+### 4. Build
 
-Claude Agent SDK 依赖 Claude Code CLI：
 ```bash
-npm install -g @anthropic-ai/claude-code
-claude --version
+edgeone pages build
 ```
 
-## API
+## API Endpoints
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/chat` | POST | SSE 流式聊天，header 带 `pages-agent-conversation-id` |
-| `/stop` | POST | 中断正在执行的 agent，body 传 `conversation_id` |
-| `/history` | POST | 获取历史消息，header 带 `pages-agent-conversation-id` |
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/chat` | POST | SSE streaming chat. Header: `pages-agent-conversation-id` |
+| `/stop` | POST | Abort the active agent run. Body: `{ "conversation_id": "..." }` |
+| `/history` | POST | Get conversation history. Header: `pages-agent-conversation-id` |
 
-### SSE 事件
+### SSE Events
 
 ```
-event: text_delta     data: {"delta":"你好"}
-event: tool_called    data: {"tool":"Bash"}
+event: text_delta     data: {"delta":"Hello"}
+event: tool_called    data: {"tool":"commands"}
+event: image          data: {"base64":"..."}
 event: ping           data: {"ts":1710000000000}
 event: error          data: {"message":"..."}
 event: done           data: {"stopped":false}
 ```
 
-## 实现要点
+## Architecture
 
-- **会话持久化**：通过 `ctx.store.append_message()` / `get_messages()` 保存和恢复对话历史
-- **双重取消机制**：
-  1. 前端 `AbortController.abort()` 停止 SSE 读取
-  2. 后端 `context.utils.abortActiveRun()` 真正中断 LLM 请求
-- **心跳保活**：每 15 秒发送 `ping` 事件，防止网关/CDN 超时断连
-- Node 版使用 `query()` + diff 计算 text delta
-- Python 版使用 `ClaudeSDKClient` + `receive_response()` 流式事件
+### Backend (`agents/`)
+
+1. **`context.tools.toClaudeMcpServer()`** — Converts EdgeOne sandbox tools into a Claude MCP Server
+2. **`createSdkMcpServer()`** — Registers the MCP server with the Claude Agent SDK
+3. **`context.store.claude_session_store()`** — Provides session persistence for multi-turn memory
+4. **`query({ prompt, options })`** — Launches the Claude Agent with streaming output
+5. **`store.appendMessage()`** — Saves user/assistant messages for `/history` restore
+
+### Frontend (`src/`)
+
+- `App.tsx` — Orchestrates chat panel + code viewer, manages SSE stream
+- `api.ts` — SSE parsing, dispatches `onTextDelta`, `onToolCalled`, `onDone`, `onError`
+- `components/CodeViewer.tsx` — Static display-only code panel (amber CRT aesthetic) showing the agent flow
+- `components/ToolIndicators.tsx` — Animated tool lamps that flash when the model calls a tool
+
+### Key Implementation Details
+
+- **Dual Cancellation**: Frontend `AbortController.abort()` stops SSE read; backend `context.request.signal` propagates to the SDK and truly releases the upstream LLM connection
+- **Tool Bridge**: EdgeOne sandbox tools (commands/files/code_interpreter/browser) are exposed to Claude via the MCP protocol
+- **Image Support**: Base64 images from tool results (e.g. browser screenshots) are pushed as `image` SSE events
