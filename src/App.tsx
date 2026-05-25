@@ -26,6 +26,9 @@ function getOrCreateConversationId(): string {
   return conversationId;
 }
 
+// ✅ 模块级去重标记 —— 脱离 React 生命周期，StrictMode 无法干扰
+let _historyFetchInFlight = false;
+
 export default function App() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [lamps, setLamps]       = useState<ToolLampState[]>(INITIAL_LAMPS);
@@ -39,11 +42,15 @@ export default function App() {
   const conversationIdRef = useRef<string>(getOrCreateConversationId());
 
   useEffect(() => {
+    if (_historyFetchInFlight) return;
+    _historyFetchInFlight = true;
+
     fetchConversationHistory(conversationIdRef.current).then(history => {
       if (history.length > 0) {
         setMessages(history);
       }
     }).finally(() => {
+      _historyFetchInFlight = false;
       setHistoryLoading(false);
     });
   }, []);
@@ -142,14 +149,23 @@ export default function App() {
     setMessages([]);
   }, []);
 
-  const handleStop = useCallback(async () => {
+  const handleStop = useCallback(() => {
+    // 1. 立即中断前端 SSE 读取
     if (abortCtrlRef.current) {
       abortCtrlRef.current.abort();
       abortCtrlRef.current = null;
     }
-    await stopAgent(conversationIdRef.current);
+
+    // 2. 前端立即显示已中断（乐观 UI，不等后端）
     updateBotMessage(content => content ? content + '\n\n⏹ *已停止生成*' : '⏹ *已停止生成*');
     setLoading(false);
+
+    // 3. 后端异步执行中断，失败时提示用户
+    stopAgent(conversationIdRef.current).then(ok => {
+      if (!ok) {
+        updateBotMessage(content => content + '\n\n⚠️ 后端中断请求失败，服务端可能仍在运行。');
+      }
+    });
   }, [updateBotMessage]);
 
   return (
