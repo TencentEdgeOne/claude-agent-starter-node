@@ -29,8 +29,8 @@ export default function DebugPanel({ events, onClear }: Props) {
       <div className={styles.body} ref={scrollRef}>
         {events.length === 0 && (
           <div className={styles.empty}>
-            等待 SSE 事件...<br />
-            发送消息后，这里会显示后端返回的所有原始数据。
+            Waiting for SSE events...<br />
+            After sending a message, all raw backend data will be displayed here.
           </div>
         )}
 

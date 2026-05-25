@@ -3,7 +3,7 @@ export interface Message {
   role: 'user' | 'assistant';
   content: string;
   timestamp: number;
-  images?: string[];  // base64 图片数据列表（不含 data URI 前缀）
+  images?: string[];  // base64 image data list (without data URI prefix)
 }
 
 export interface ToolLampState {
@@ -11,5 +11,5 @@ export interface ToolLampState {
   label: string;
   icon: string;
   active: boolean;
-  animKey: number;   // 每次点亮时递增，让动画元素重新挂载以复播动画
+  animKey: number;   // Incremented on each activation to remount and replay animation
 }

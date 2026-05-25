@@ -12,13 +12,13 @@ export default function ChatWindow({ messages, loading }: Props) {
   const windowRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    // 没有内容时不需要滚动
+    // No need to scroll when there is no content
     if (messages.length === 0 && !loading) return;
-    // 直接操作容器 scrollTop，只滚动 ChatWindow 内部
-    // 避免 scrollIntoView 滚动所有祖先元素导致 header 消失
+    // Directly manipulate container scrollTop, only scroll ChatWindow internally
+    // Avoid scrollIntoView scrolling all ancestors causing header to disappear
     const el = windowRef.current;
     if (!el) return;
-    // 流式输出期间用 instant 避免 smooth 动画堆积导致抖动，结束后再用 smooth
+    // Use instant during streaming to avoid jitter from stacked smooth animations; use smooth after
     el.scrollTo({ top: el.scrollHeight, behavior: loading ? 'instant' : 'smooth' });
   }, [messages, loading]);
 
@@ -29,10 +29,10 @@ export default function ChatWindow({ messages, loading }: Props) {
           <span className={styles.emptyIcon}>⬡</span>
           <p className={styles.emptyTitle}>Claude Agent Starter</p>
           <p className={styles.emptyHint}>
-            我是运行在 EdgeOne 环境中的 Claude 助手，可以调用沙箱工具、保存会话记忆，并帮助你完成调试、文件处理、代码执行和网页访问。
+            I'm a Claude assistant running on EdgeOne. I can call sandbox tools, persist session memory, and help you with debugging, file management, code execution, and web browsing.
           </p>
           <p className={styles.emptyFeatures}>
-            沙箱工具 · Store 会话记忆 · 自动可观测
+            Sandbox Tools · Store Memory · Observability
           </p>
         </div>
       )}
@@ -41,7 +41,7 @@ export default function ChatWindow({ messages, loading }: Props) {
         <ChatBubble key={msg.id} message={msg} />
       ))}
 
-      {/* 仅当 loading 且助手消息还没有内容流入时才显示等待动画 */}
+      {/* Show typing indicator only when loading and assistant message has no content yet */}
       {loading && !(messages.length > 0 && messages[messages.length - 1].role === 'assistant' && messages[messages.length - 1].content.length > 0) && (
         <div className={styles.typingRow}>
           <div className={styles.avatar}>⬡</div>

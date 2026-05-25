@@ -9,10 +9,10 @@ interface Props {
 }
 
 const PRESETS = [
-  '用终端命令查看当前系统时间和操作系统版本。',
-  '创建 /tmp/hello.txt 写入 "Hello EdgeOne"，然后读取它的内容。',
-  '用 Python 计算斐波那契数列前 10 项并打印出来。',
-  '访问 https://edgeone.ai 并总结页面内容。',
+  'Use terminal commands to check the current system time and OS version.',
+  'Create /tmp/hello.txt with content "Hello EdgeOne", then read it back.',
+  'Use Python to calculate and print the first 10 Fibonacci numbers.',
+  'Visit https://edgeone.ai and summarize the page content.',
 ];
 
 export default function ChatInput({ onSend, onStop, onClear, disabled }: Props) {
@@ -67,7 +67,7 @@ export default function ChatInput({ onSend, onStop, onClear, disabled }: Props) 
         <textarea
           ref={textareaRef}
           className={styles.textarea}
-          placeholder="发消息…  ⏎ 发送 · Shift+⏎ 换行"
+          placeholder="Type a message...  ⏎ Send · Shift+⏎ Newline"
           value={value}
           onChange={e => setValue(e.target.value)}
           onKeyDown={handleKeyDown}
@@ -79,7 +79,7 @@ export default function ChatInput({ onSend, onStop, onClear, disabled }: Props) 
           className={`${styles.sendBtn} ${(!value.trim() || disabled) ? styles.sendDisabled : ''}`}
           onClick={handleSend}
           disabled={!value.trim() || disabled}
-          aria-label="发送"
+          aria-label="Send"
         >
           <svg viewBox="0 0 20 20" fill="none" width="16" height="16">
             <path d="M3 10L17 3l-4 7 4 7L3 10z" fill="currentColor"/>
@@ -104,8 +104,8 @@ export default function ChatInput({ onSend, onStop, onClear, disabled }: Props) 
           <button
             className={styles.stopBtn}
             onClick={onStop}
-            aria-label="停止生成"
-            title="停止生成"
+            aria-label="Stop generation"
+            title="Stop generation"
           >
             <svg viewBox="0 0 20 20" fill="none" width="14" height="14">
               <rect x="4" y="4" width="12" height="12" rx="2" fill="currentColor"/>
@@ -113,7 +113,7 @@ export default function ChatInput({ onSend, onStop, onClear, disabled }: Props) 
           </button>
         )}
       </div>
-      <p className={styles.hint}>由 Claude Agent SDK + EdgeOne Sandbox 驱动 · 仅供演示</p>
+      <p className={styles.hint}>Powered by Claude Agent SDK + EdgeOne Sandbox · Demo only</p>
     </div>
   );
 }

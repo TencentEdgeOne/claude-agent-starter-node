@@ -76,7 +76,7 @@ export default function CodeViewer() {
 
           {/* Step 1 */}
           <L n={10}>
-            <I /><Cmt t="// 1. EdgeOne Store：保存用户消息，供历史恢复" />
+            <I /><Cmt t="// 1. EdgeOne Store: save user message for history restore" />
           </L>
           <L n={11}>
             <I /><Kw t="await " /><Va t="store" /><Op t="?." />
@@ -98,7 +98,7 @@ export default function CodeViewer() {
 
           {/* Step 2 */}
           <L n={17}>
-            <I /><Cmt t="// 2. EdgeOne Store：注入 Claude Agent SDK 会话记忆" />
+            <I /><Cmt t="// 2. EdgeOne Store: inject Claude Agent SDK session memory" />
           </L>
           <L n={18}>
             <I /><Kw t="const " /><Va t="sessionStore" /><Op t=" = " />
@@ -109,7 +109,7 @@ export default function CodeViewer() {
 
           {/* Step 3 */}
           <L n={20}>
-            <I /><Cmt t="// 3. EdgeOne Tools：一键转换为 Claude MCP Server" />
+            <I /><Cmt t="// 3. EdgeOne Tools: one-click convert to Claude MCP Server" />
           </L>
           <L n={21}>
             <I /><Kw t="const " /><Va t="edgeoneMcp" /><Op t=" = " />
@@ -138,7 +138,7 @@ export default function CodeViewer() {
 
           {/* Step 4 */}
           <L n={28}>
-            <I /><Cmt t="// 4. 创建 Agent 运行参数" />
+            <I /><Cmt t="// 4. Build Agent run options" />
           </L>
           <L n={29}>
             <I /><Kw t="const " /><Va t="options" /><Op t=" = {" />
@@ -183,7 +183,7 @@ export default function CodeViewer() {
 
           {/* Step 5 */}
           <L n={40}>
-            <I /><Cmt t="// 5. 启动 Claude Agent" />
+            <I /><Cmt t="// 5. Launch Claude Agent" />
           </L>
           <L n={41}>
             <I /><Kw t="const " /><Va t="result" /><Op t=" = " />
@@ -194,7 +194,7 @@ export default function CodeViewer() {
           <L n={42} />
 
           <L n={43}>
-            <I /><Doc t="// 省略 SSE streaming 细节..." />
+            <I /><Doc t="// SSE streaming details omitted..." />
           </L>
           <L n={44}>
             <I /><Kw t="const " /><Va t="assistantText" /><Op t=" = " />
@@ -204,7 +204,7 @@ export default function CodeViewer() {
 
           {/* Step 6 */}
           <L n={46}>
-            <I /><Cmt t="// 6. EdgeOne Store：保存助手回复，供 /history 恢复" />
+            <I /><Cmt t="// 6. EdgeOne Store: save assistant reply for /history restore" />
           </L>
           <L n={47}>
             <I /><Kw t="await " /><Va t="store" /><Op t="?." />
