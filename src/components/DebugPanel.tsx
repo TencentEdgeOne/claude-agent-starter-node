@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react';
 import type { RawSseEvent } from '../api';
+import { useT } from '../i18n';
 import styles from './DebugPanel.module.css';
 
 interface Props {
@@ -8,6 +9,7 @@ interface Props {
 }
 
 export default function DebugPanel({ events, onClear }: Props) {
+  const { t } = useT();
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,17 +22,17 @@ export default function DebugPanel({ events, onClear }: Props) {
       <div className={styles.header}>
         <div className={styles.headerLeft}>
           <span className={styles.dot} />
-          <span className={styles.title}>SSE Debug</span>
-          <span className={styles.count}>{events.length} events</span>
+          <span className={styles.title}>{t("debug.title")}</span>
+          <span className={styles.count}>{events.length} {t("debug.events")}</span>
         </div>
-        <button className={styles.clearBtn} onClick={onClear}>Clear</button>
+        <button className={styles.clearBtn} onClick={onClear}>{t("debug.clear")}</button>
       </div>
 
       <div className={styles.body} ref={scrollRef}>
         {events.length === 0 && (
           <div className={styles.empty}>
-            Waiting for SSE events...<br />
-            After sending a message, all raw backend data will be displayed here.
+            {t("debug.empty")}<br />
+            {t("debug.emptyHint")}
           </div>
         )}
 
