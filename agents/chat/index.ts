@@ -40,7 +40,7 @@ function buildAgentOptions(opts?: { claudeSessionStore?: any; mcpServer?: any; m
     systemPrompt: SYSTEM_PROMPT,
     cwd: process.cwd(),
     tools: [],
-    allowedTools: [...(opts?.allowedTools ?? []), "Read", "Write", "Bash"],
+    allowedTools: [...(opts?.allowedTools ?? [])],
     settingSources: ["user", "project"],
     skills: "all",
     permissionMode: 'bypassPermissions',
