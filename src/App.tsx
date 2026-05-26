@@ -2,18 +2,26 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import type { Message, ToolLampState } from './types';
 import { fetchConversationHistory, sendMessageStream, stopAgent } from './api';
 import type { RawSseEvent } from './api';
+import { I18nProvider, LangToggle, useT, MessageKeys } from './i18n';
 import ToolIndicators from './components/ToolIndicators';
 import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
 import DebugPanel from './components/DebugPanel';
 import styles from './App.module.css';
 
-const INITIAL_LAMPS: ToolLampState[] = [
-  { id: 'commands',         label: 'Commands',   icon: '⌨️', active: false, animKey: 0 },
-  { id: 'files',            label: 'Files',   icon: '📁', active: false, animKey: 0 },
-  { id: 'code_interpreter', label: 'Code Runner', icon: '🐍', active: false, animKey: 0 },
-  { id: 'browser',          label: 'Browser',     icon: '🌐', active: false, animKey: 0 },
-];
+const LAMP_IDS = ['commands', 'files', 'code_interpreter', 'browser'] as const;
+const LAMP_ICONS: Record<string, string> = {
+  commands: '⌨️',
+  files: '📁',
+  code_interpreter: '🐍',
+  browser: '🌐',
+};
+const LAMP_I18N_KEYS: Record<string, string> = {
+  commands: 'tool.commands',
+  files: 'tool.files',
+  code_interpreter: 'tool.codeRunner',
+  browser: 'tool.browser',
+};
 
 const CONVERSATION_ID_STORAGE_KEY = 'eo_conversation_id';
 
@@ -30,10 +38,37 @@ function getOrCreateConversationId(): string {
 let _historyFetchInFlight = false;
 
 export default function App() {
+  return (
+    <I18nProvider>
+      <LangToggle />
+      <AppInner />
+    </I18nProvider>
+  );
+}
+
+function AppInner() {
+  const { t } = useT();
+
+  const buildLamps = useCallback((): ToolLampState[] => LAMP_IDS.map(id => ({
+    id,
+    label: t(LAMP_I18N_KEYS[id] as MessageKeys),
+    icon: LAMP_ICONS[id],
+    active: false,
+    animKey: 0,
+  })), [t]);
+
   const [messages, setMessages] = useState<Message[]>([]);
-  const [lamps, setLamps]       = useState<ToolLampState[]>(INITIAL_LAMPS);
+  const [lamps, setLamps]       = useState<ToolLampState[]>(buildLamps);
   const [loading, setLoading]   = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+
+  // Update lamp labels when language changes
+  useEffect(() => {
+    setLamps(prev => prev.map(l => ({
+      ...l,
+      label: t(LAMP_I18N_KEYS[l.id] as MessageKeys),
+    })));
+  }, [t]);
 
   const [debugEvents, setDebugEvents] = useState<RawSseEvent[]>([]);
 
@@ -133,13 +168,13 @@ export default function App() {
       onDone: finishStream,
 
       onError() {
-        updateBotMessage(content => content || 'Request failed. Please check if the backend service is running.');
+        updateBotMessage(content => content || t("status.error"));
         finishStream();
       },
     }, conversationIdRef.current);
 
     abortCtrlRef.current = ctrl;
-  }, [updateBotMessage, appendBotImage, finishStream]);
+  }, [updateBotMessage, appendBotImage, finishStream, t]);
 
   const handleClearHistory = useCallback(() => {
     localStorage.removeItem(CONVERSATION_ID_STORAGE_KEY);
@@ -157,16 +192,16 @@ export default function App() {
     }
 
     // 2. Optimistic UI: show stopped immediately without waiting for backend
-    updateBotMessage(content => content ? content + '\n\n⏹ *Generation stopped*' : '⏹ *Generation stopped*');
+    updateBotMessage(content => content ? content + '\n\n' + t("status.stopped") : t("status.stopped"));
     setLoading(false);
 
     // 3. Backend abort async — notify user on failure
     stopAgent(conversationIdRef.current).then(ok => {
       if (!ok) {
-        updateBotMessage(content => content + '\n\n Backend abort request failed. The server may still be running.');
+        updateBotMessage(content => content + '\n\n' + t("status.backendError"));
       }
     });
-  }, [updateBotMessage]);
+  }, [updateBotMessage, t]);
 
   return (
     <div className={styles.shell}>
@@ -184,8 +219,8 @@ export default function App() {
             <div className={styles.headerLeft}>
               <span className={styles.logo}>⬡</span>
               <div>
-                <p className={styles.title}>Agent Chat</p>
-                <p className={styles.subtitle}>Running on EdgeOne with sandbox tools, session memory & observability</p>
+                <p className={styles.title}>{t("app.title")}</p>
+                <p className={styles.subtitle}>{t("app.subtitle")}</p>
               </div>
             </div>
             <ToolIndicators lamps={lamps} />
