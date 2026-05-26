@@ -4,6 +4,7 @@
   gap: 10px;
   animation: fadeUp .25s ease both;
   max-width: 100%;
+  min-width: 0;
 }
 .botRow  { justify-content: flex-start; }
 .userRow { justify-content: flex-end; }
@@ -31,11 +32,13 @@
 .bubble {
   position: relative;
   max-width: 68%;
+  min-width: 0;
   padding: 12px 16px 24px;
   border-radius: var(--radius-md);
   font-size: .82rem;
   line-height: 1.65;
   word-break: break-word;
+  overflow: hidden;
 }
 
 .botBubble {
@@ -43,6 +46,7 @@
   border: 1px solid var(--bot-border);
   color: var(--text-primary);
   border-radius: var(--radius-md) var(--radius-md) var(--radius-md) 4px;
+  padding-left: 20px;
 }
 
 .userBubble {
@@ -70,9 +74,13 @@
 .markdown h3 { font-size: .95em; }
 .markdown ul, .markdown ol {
   margin: .4em 0;
-  padding-left: 1.5em;
+  padding-left: 2em;
+  list-style-position: outside;
 }
-.markdown li { margin: .15em 0; }
+.markdown li {
+  margin: .15em 0;
+  padding-left: .15em;
+}
 .markdown code {
   background: rgba(255,255,255,.06);
   border: 1px solid rgba(255,255,255,.08);
