@@ -38,11 +38,11 @@ function buildAgentOptions(opts?: { claudeSessionStore?: any; mcpServer?: any; m
   const options: Record<string, any> = {
     model: resolveModelName(ctxEnv),
     systemPrompt: SYSTEM_PROMPT,
+    cwd: process.cwd(),
     tools: [],
     allowedTools: [...(opts?.allowedTools ?? []), "Read", "Write", "Bash"],
-    settingSources: ["project"],
+    settingSources: ["user", "project"],
     skills: "all",
-    addDirs: [],
     permissionMode: 'bypassPermissions',
     maxTurns: 10,
     env: {
