@@ -144,6 +144,16 @@
   background: rgba(192, 132, 252, 0.1);
 }
 
+.type_skills_loaded {
+  color: #00ffa3;
+  background: rgba(0, 255, 163, 0.15);
+}
+
+.type_debug_msg {
+  color: #a78bfa;
+  background: rgba(167, 139, 250, 0.1);
+}
+
 .eventTime {
   font-size: 0.6rem;
   color: var(--text-muted, #555);

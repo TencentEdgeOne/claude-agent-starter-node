@@ -33,6 +33,12 @@ const SYSTEM_PROMPT =
   'Do NOT use any tools other than those listed above.';
 
 
+const REGISTERED_SKILLS = [
+  { name: 'code-review', description: 'Review code for quality, bugs, performance issues, and best practices.' },
+  { name: 'api-docs-generator', description: 'Generate API documentation from source code.' },
+  { name: 'test-writer', description: 'Write unit tests and integration tests for code.' },
+];
+
 function buildAgentOptions(opts?: { claudeSessionStore?: any; mcpServer?: any; mcpServerName?: string; allowedTools?: string[]; env?: Record<string, string | undefined> }) {
   const ctxEnv = opts?.env ?? {};
   const options: Record<string, any> = {
@@ -129,6 +135,13 @@ export async function onRequest(context: any) {
   const stream = new ReadableStream({
     async start(controller) {
       try {
+        // Emit skills discovery event before query starts
+        controller.enqueue(encoder.encode(sseFrame('skills_loaded', {
+          count: REGISTERED_SKILLS.length,
+          skills: REGISTERED_SKILLS,
+          settingSources: options.settingSources,
+        })));
+
         const abortController = new AbortController();
         if (signal?.aborted) {
           abortController.abort();
