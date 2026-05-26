@@ -41,7 +41,7 @@ function buildAgentOptions(opts?: { claudeSessionStore?: any; mcpServer?: any; m
     cwd: process.cwd(),
     tools: [],
     allowedTools: [...(opts?.allowedTools ?? [])],
-    settingSources: ["user", "project"],
+    settingSources: ["project"],
     skills: "all",
     permissionMode: 'bypassPermissions',
     maxTurns: 10,
