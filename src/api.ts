@@ -9,7 +9,7 @@
  * This file defines all API paths and request wrappers.
  */
 
-import type { Message } from './types';
+import type { Message, ImageSsePayload } from './types';
 
 export const API = {
   chat: '/chat',
@@ -27,7 +27,7 @@ export interface RawSseEvent {
 export interface StreamCallbacks {
   onTextDelta: (delta: string) => void;
   onToolCalled: (toolName: string) => void;
-  onImage: (base64: string) => void;
+  onImage: (payload: ImageSsePayload) => void;
   onDone: () => void;
   onError: (err: Error) => void;
   onRawEvent?: (event: RawSseEvent) => void;
@@ -85,6 +85,7 @@ export function sendMessageStream(
   message: string,
   callbacks: StreamCallbacks,
   conversationId?: string,
+  messageIds?: { userMsgId: string; botMsgId: string },
 ): AbortController {
   const ctrl = new AbortController();
 
@@ -100,7 +101,11 @@ export function sendMessageStream(
       const res = await fetch(API.chat, {
         method: 'POST',
         headers,
-        body: JSON.stringify({ message }),
+        body: JSON.stringify({
+          message,
+          userMsgId: messageIds?.userMsgId,
+          botMsgId: messageIds?.botMsgId,
+        }),
         signal: ctrl.signal,
       });
 
@@ -186,7 +191,14 @@ function dispatchSseChunk(part: string, cb: StreamCallbacks, markDone: () => voi
         cb.onToolCalled(parsed.tool);
         break;
       case 'image':
-        if (parsed.base64) cb.onImage(parsed.base64);
+        if (parsed.base64) {
+          cb.onImage({
+            imageId: parsed.imageId || crypto.randomUUID(),
+            base64: parsed.base64,
+            mimeType: parsed.mimeType || 'image/png',
+            size: parsed.size || 0,
+          });
+        }
         break;
       case 'error':
         cb.onError(new Error(parsed.message || 'agent returned error'));
