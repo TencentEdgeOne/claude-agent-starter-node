@@ -17,6 +17,7 @@ import ToolIndicators from './components/ToolIndicators';
 import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
 import DebugPanel from './components/DebugPanel';
+import CodeViewer from './components/CodeViewer';
 import styles from './App.module.css';
 
 const LAMP_IDS = ['commands', 'files', 'code_interpreter', 'browser'] as const;
@@ -77,6 +78,8 @@ function AppInner() {
   const [lamps, setLamps]       = useState<ToolLampState[]>(buildLamps);
   const [loading, setLoading]   = useState(false);
   const [historyLoading, setHistoryLoading] = useState(true);
+  const [skillsLoading, setSkillsLoading] = useState(false);
+  const [rightPanelMode, setRightPanelMode] = useState<'code' | 'debug'>('code');
 
   // Update lamp labels when language changes
   useEffect(() => {
@@ -245,6 +248,7 @@ function AppInner() {
   const handleSend = useCallback(async (text: string) => {
     // User has interacted — allow snapshot persistence from now on
     initDoneRef.current = true;
+    setRightPanelMode('debug');
 
     const userMsg: Message = {
       id: crypto.randomUUID(),
@@ -290,7 +294,13 @@ function AppInner() {
       },
 
       onRawEvent(event) {
+        setRightPanelMode('debug');
         setDebugEvents(prev => [...prev, event]);
+        // Show brief "skills loading" indicator when skill is actually loaded
+        if (event.eventType === 'skills_available') {
+          setSkillsLoading(true);
+          setTimeout(() => setSkillsLoading(false), 2000);
+        }
       },
 
       onDone: finishStream,
@@ -317,6 +327,8 @@ function AppInner() {
     localStorage.setItem(CONVERSATION_ID_STORAGE_KEY, newId);
     conversationIdRef.current = newId;
     setMessages([]);
+    setDebugEvents([]);
+    setRightPanelMode('code');
   }, []);
 
   const handleStop = useCallback(() => {
@@ -359,6 +371,7 @@ function AppInner() {
               </div>
             </div>
             <ToolIndicators lamps={lamps} />
+            {skillsLoading && <span className={styles.skillsLoading}>skills loading...</span>}
           </header>
 
           <ChatWindow messages={messages} loading={loading} />
@@ -366,7 +379,11 @@ function AppInner() {
         </div>
 
         <div className={styles.codePanel}>
-          <DebugPanel events={debugEvents} onClear={() => setDebugEvents([])} />
+          {rightPanelMode === 'code' ? (
+            <CodeViewer />
+          ) : (
+            <DebugPanel events={debugEvents} onClear={() => setDebugEvents([])} />
+          )}
         </div>
       </div>
     </div>
