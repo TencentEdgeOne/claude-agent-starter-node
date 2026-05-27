@@ -44,7 +44,7 @@ The project currently uses `AI_GATEWAY_*` variables:
 |----------|----------|-------------|
 | `AI_GATEWAY_API_KEY` | Yes | AI Gateway API key |
 | `AI_GATEWAY_BASE_URL` | Yes | AI Gateway base URL (must be Anthropic Messages API compatible) |
-| `AI_GATEWAY_MODEL` | No | Model name (default: `@Pages/hy3-preview`) |
+| `AI_GATEWAY_MODEL` | No | Model name (default: `@makers/hy3-preview`) |
 
 ### 2. Install Dependencies
 

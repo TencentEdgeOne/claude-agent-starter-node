@@ -44,7 +44,7 @@ claude-agent-starter/
 |------|------|------|
 | `AI_GATEWAY_API_KEY` | 是 | AI 网关 API Key |
 | `AI_GATEWAY_BASE_URL` | 是 | AI 网关 Base URL（需兼容 Anthropic Messages API） |
-| `AI_GATEWAY_MODEL` | 否 | 模型名称（默认 `@Pages/hy3-preview`） |
+| `AI_GATEWAY_MODEL` | 否 | 模型名称（默认 `@makers/hy3-preview`） |
 
 ### 2. 安装依赖
 
