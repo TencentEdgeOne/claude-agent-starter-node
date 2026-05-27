@@ -16,6 +16,15 @@ interface CreateChatStreamOptions {
   botMsgId?: string;
 }
 
+/** Skill catalog — describes skills available in this project. */
+const PROJECT_SKILLS = [
+  {
+    name: 'smart-translator',
+    label: '智能翻译',
+    description: 'Translate text between Chinese and English while preserving tone, formatting, terminology, and Markdown structure.',
+  },
+];
+
 function sseFrame(event: string, data: Record<string, unknown>): string {
   return `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`;
 }
@@ -155,6 +164,16 @@ function emitAssistantBlocks(
       );
 
       enqueueSse(controller, encoder, 'tool_called', { tool: toolName });
+
+      // Detect skill loading — Claude SDK uses load_skill tool to activate a skill
+      if (toolName === 'load_skill' || rawToolName.includes('load_skill')) {
+        const skillName = toolInput && typeof toolInput === 'object'
+          ? (toolInput as Record<string, unknown>).skill ?? (toolInput as Record<string, unknown>).name ?? (toolInput as Record<string, unknown>).skillName
+          : undefined;
+        if (typeof skillName === 'string') {
+          enqueueSse(controller, encoder, 'skill_loaded', { name: skillName, status: 'loaded' });
+        }
+      }
     } else {
       // Other block types (e.g. image): push as debug_block event with redacted content.
       enqueueSse(controller, encoder, 'debug_block', {
@@ -189,6 +208,11 @@ export function createChatStream({
         enqueueSse(controller, encoder, 'skills_loaded', {
           skills: options.skills,
           settingSources: options.settingSources,
+        });
+
+        // Emit available skills catalog for frontend UI.
+        enqueueSse(controller, encoder, 'skills_available', {
+          skills: PROJECT_SKILLS,
         });
 
         const abortController = new AbortController();

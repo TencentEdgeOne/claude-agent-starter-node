@@ -1,14 +1,28 @@
-# `test-writer` Skill 预制问题与前端加载展示方案
+# `smart-translator` Skill 预制问题与前端加载展示方案
 
-目标：当前项目只保留 `.claude/skills/test-writer/SKILL.md` 一个 skill，需要为它配置一个预制问题，并在后端发生 `load_skill` / skill 可用事件时，在前端页面中给用户可见反馈。
+目标：将当前项目中不适合展示的 `test-writer` skill 替换为更简单、稳定、容易触发的 `smart-translator` skill，并为它配置一个预制问题；当后端发生 `load_skill` / skill 可用事件时，在前端页面中给用户可见反馈。
+
+选择 `smart-translator` 的原因：
+
+- 不依赖文件、浏览器、截图或网络；
+- 用户点击预制问题后可以快速触发；
+- 输出结果直观，普通用户容易理解；
+- 非常适合展示 “Skill 可用 / Skill 已加载” 的前端状态；
+- 失败概率低，适合作为 starter/demo 的默认 skill。
 
 ---
 
 ## 1. 当前项目现状
 
-### 1.1 当前唯一 Skill
+### 1.1 当前 Skill 需要替换
 
-文件：`.claude/skills/test-writer/SKILL.md`
+当前项目只保留了：
+
+```txt
+.claude/skills/test-writer/SKILL.md
+```
+
+原 skill：
 
 ```yaml
 ---
@@ -17,9 +31,157 @@ description: Write unit tests and integration tests for code. Use when the user 
 ---
 ```
 
-该 skill 的触发意图是：用户要求写测试、补充测试用例、提升测试覆盖率。
+问题：
 
-### 1.2 当前前端已有预制问题入口
+- `test-writer` 需要读取代码、判断测试框架、生成测试文件；
+- 对普通用户不够直观；
+- 触发后和普通代码生成的差异不明显；
+- 不适合作为 “Skill 加载展示” 的默认 demo。
+
+建议替换为：
+
+```txt
+.claude/skills/smart-translator/SKILL.md
+```
+
+---
+
+## 2. 推荐 Skill：`smart-translator`
+
+### 2.1 Skill 定位
+
+Skill 名称：
+
+```txt
+smart-translator
+```
+
+中文展示名：
+
+```txt
+智能翻译
+```
+
+定位：
+
+```txt
+在中英文之间翻译内容，同时保留语气、格式、术语、Markdown 结构和产品文案风格。
+```
+
+适合触发的用户意图：
+
+- 翻译；
+- 本地化；
+- 中英文互译；
+- 产品文案翻译；
+- 保持 Markdown 结构的翻译；
+- 技术术语准确翻译；
+- 翻译并润色。
+
+---
+
+## 3. 推荐 `SKILL.md`
+
+新增文件：`.claude/skills/smart-translator/SKILL.md`
+
+删除旧文件：`.claude/skills/test-writer/SKILL.md`
+
+推荐内容：
+
+```md
+---
+name: smart-translator
+description: Translate text between Chinese and English while preserving tone, formatting, terminology, and Markdown structure. Use when the user asks to translate, localize, polish bilingual content, or adapt copy for product pages.
+---
+
+# Smart Translator
+
+## Instructions
+
+When translating or localizing text:
+
+1. Detect the source language automatically.
+2. Translate Chinese to English, or English to Chinese, unless the user specifies another target language.
+3. Preserve Markdown, lists, tables, inline code, links, placeholders, and product names.
+4. Keep technical terms accurate and consistent.
+5. Adapt the tone according to the user's request.
+6. If the user does not specify a tone, use a clear, professional, and concise tone.
+7. Do not add unrelated explanation.
+
+## Output Format
+
+Return:
+
+```md
+## Translation
+
+...
+
+## Notes
+
+- ...
+```
+
+Only include `Notes` when there are important terminology, tone, or localization decisions.
+
+## Rules
+
+- Do not change product names unless explicitly requested.
+- Preserve placeholders, variables, command names, API names, and code identifiers.
+- Preserve Markdown structure whenever possible.
+- Keep the translation natural rather than literal when product copy requires localization.
+- Respond in the same language as the user unless the user asks otherwise.
+```
+
+---
+
+## 4. 预制问题设计
+
+### 4.1 中文预制问题
+
+推荐使用短、稳定、容易展示的 preset：
+
+```txt
+请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Pages Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。
+```
+
+优点：
+
+- 明确点名 `smart-translator skill`；
+- 内容短，响应快；
+- 不依赖文件或工具；
+- 结果容易判断好坏；
+- 非技术用户也能理解。
+
+### 4.2 英文预制问题
+
+```txt
+Use the smart-translator skill to translate this sentence into Chinese while keeping a professional landing-page tone: EdgeOne Pages Agent supports streaming chat, tool calling, and session memory, helping developers quickly build AI Agent applications.
+```
+
+### 4.3 按钮展示文案
+
+如果希望按钮更短，前端 chip 可以展示短 label，但实际发送完整 prompt。
+
+按钮文案：
+
+```txt
+翻译产品介绍
+```
+
+实际发送内容：
+
+```txt
+请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Pages Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。
+```
+
+当前项目的 `ChatInput` 是直接把 i18n 文案作为发送内容，因此最小实现中按钮文案和发送内容可以先保持一致。后续如果要优化展示，可以把 `labelKey` 和 `promptKey` 拆开。
+
+---
+
+## 5. 前端预制问题改造方案
+
+### 5.1 当前实现
 
 文件：`src/components/ChatInput.tsx`
 
@@ -34,11 +196,85 @@ const PRESET_KEYS = ['preset.1', 'preset.2', 'preset.3', 'preset.4'] as const;
 - `src/i18n/zh.ts`
 - `src/i18n/en.ts`
 
-### 1.3 当前后端已有 skill 配置事件
+### 5.2 最小改造方式
 
-文件：`agents/chat/_stream.ts`
+将 `PRESET_KEYS` 改为只保留一个 smart-translator preset：
 
-当前 stream 开始时会发一个 `skills_loaded` SSE 事件：
+```ts
+const PRESET_KEYS = ['preset.skill.smartTranslator'] as const;
+```
+
+这样页面上只显示一个和当前唯一 skill 对应的预制问题，用户不会误以为还有多个 demo skill。
+
+### 5.3 i18n 新增字段
+
+`src/i18n/zh.ts`：
+
+```ts
+"preset.skill.smartTranslator": "请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Pages Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。",
+```
+
+`src/i18n/en.ts`：
+
+```ts
+"preset.skill.smartTranslator": "Use the smart-translator skill to translate this sentence into Chinese while keeping a professional landing-page tone: EdgeOne Pages Agent supports streaming chat, tool calling, and session memory, helping developers quickly build AI Agent applications.",
+```
+
+### 5.4 可选：拆分按钮 label 和发送 prompt
+
+如果希望按钮短一点，可以改造 `ChatInput`：
+
+```ts
+const PRESETS = [
+  {
+    labelKey: 'preset.skill.smartTranslator.label',
+    promptKey: 'preset.skill.smartTranslator.prompt',
+  },
+] as const;
+```
+
+对应 i18n：
+
+```ts
+"preset.skill.smartTranslator.label": "翻译产品介绍",
+"preset.skill.smartTranslator.prompt": "请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Pages Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。",
+```
+
+最小实现可以先不做拆分。
+
+---
+
+## 6. Skill 元数据集中配置
+
+当前只有一个 skill，可以硬编码；但为了前端展示和后端 SSE payload 一致，建议新增一个统一常量。
+
+推荐元数据：
+
+```ts
+const PROJECT_SKILLS = [
+  {
+    name: 'smart-translator',
+    label: '智能翻译',
+    description: 'Translate text between Chinese and English while preserving tone, formatting, terminology, and Markdown structure.',
+    presetKey: 'preset.skill.smartTranslator',
+  },
+];
+```
+
+后续如果增加更多 skill，只需要扩展这个列表。
+
+---
+
+## 7. 后端 `load_skill` / Skill 可用事件方案
+
+### 7.1 区分两个概念
+
+需要区分：
+
+1. `skills_available`：后端告诉前端“当前项目有哪些 skill 可用”；
+2. `skill_loaded`：模型实际加载/触发某个 skill 时告诉前端“正在使用 smart-translator”。
+
+当前项目已有 `skills_loaded`：
 
 ```ts
 enqueueSse(controller, encoder, 'skills_loaded', {
@@ -47,183 +283,21 @@ enqueueSse(controller, encoder, 'skills_loaded', {
 });
 ```
 
-但它现在只表达“本次 agent options 开启了 skills”，不是明确表达“哪个 skill 被加载/可用/触发”。前端目前也没有针对 `skills_loaded` 做 UI 展示。
+但这个事件只能说明 `skills: "all"`，不能告诉前端具体是 `smart-translator`。
 
----
+### 7.2 推荐新增 `skills_available`
 
-## 2. 预制问题设计
+文件：`agents/chat/_stream.ts`
 
-### 2.1 中文预制问题
-
-建议新增一个专门触发 `test-writer` 的预制问题：
-
-```txt
-请使用 test-writer skill，为当前项目中一个适合的 TypeScript 模块补充单元测试，并说明覆盖的正常路径、边界情况和错误路径。
-```
-
-如果希望更具体、更容易稳定触发，可以使用：
-
-```txt
-请使用 test-writer skill，为 src/lib/imageStore.ts 编写单元测试，覆盖 base64ToBlob、makeStorageKey、IndexedDB 图片存取和 object URL 管理。
-```
-
-推荐使用第二个，原因：
-
-- 明确要求“编写单元测试”；
-- 明确点名 `test-writer skill`；
-- 指定目标文件，减少 agent 选择成本；
-- 覆盖点和 skill 的测试编写规则匹配。
-
-### 2.2 英文预制问题
-
-```txt
-Use the test-writer skill to write unit tests for src/lib/imageStore.ts, covering base64ToBlob, makeStorageKey, IndexedDB image persistence, and object URL management.
-```
-
----
-
-## 3. 前端预制问题改造方案
-
-### 3.1 最小改造方式
-
-继续沿用现有 `PRESET_KEYS` 机制，只新增一个 key：
-
-```ts
-const PRESET_KEYS = ['preset.skill.testWriter'] as const;
-```
-
-或者如果还要保留旧的 4 个 demo preset：
-
-```ts
-const PRESET_KEYS = ['preset.skill.testWriter', 'preset.1', 'preset.2', 'preset.3', 'preset.4'] as const;
-```
-
-因为当前用户说“项目只保留了一个 skill”，建议只展示一个和 skill 相关的 preset，避免用户误以为还有多个示例能力入口。
-
-### 3.2 i18n 新增字段
-
-`src/i18n/zh.ts`：
-
-```ts
-"preset.skill.testWriter": "请使用 test-writer skill，为 src/lib/imageStore.ts 编写单元测试，覆盖 base64ToBlob、makeStorageKey、IndexedDB 图片存取和 object URL 管理。",
-```
-
-`src/i18n/en.ts`：
-
-```ts
-"preset.skill.testWriter": "Use the test-writer skill to write unit tests for src/lib/imageStore.ts, covering base64ToBlob, makeStorageKey, IndexedDB image persistence, and object URL management.",
-```
-
-### 3.3 可选：将 Skill 信息集中配置
-
-如果后续会有多个 skill，建议新增统一配置：
-
-```ts
-// src/skills.ts
-export const SKILLS = [
-  {
-    id: 'test-writer',
-    name: 'test-writer',
-    labelKey: 'skill.testWriter.label',
-    descriptionKey: 'skill.testWriter.description',
-    presetKey: 'preset.skill.testWriter',
-  },
-] as const;
-```
-
-当前只有一个 skill，可以先不加，直接改 `PRESET_KEYS` 即可。
-
----
-
-## 4. 后端 `load_skill` / Skill 可用事件方案
-
-### 4.1 区分两个概念
-
-需要区分：
-
-1. `skills_loaded`：后端告诉前端“本次会话启用了哪些 skill 配置/有哪些 skill 可用”；
-2. `skill_loaded` 或 `load_skill`：模型实际加载/触发某个 skill 时告诉前端“正在使用 test-writer”。
-
-当前项目只有第 1 种，而且 payload 还比较抽象：
-
-```json
-{
-  "skills": "all",
-  "settingSources": ["project"]
-}
-```
-
-前端无法直接知道具体是 `test-writer`。
-
-### 4.2 推荐 SSE 事件设计
-
-新增两个事件：
-
-#### `skills_available`
-
-stream 开始时发送，表示项目可用 skill 列表：
-
-```json
-{
-  "skills": [
-    {
-      "name": "test-writer",
-      "description": "Write unit tests and integration tests for code.",
-      "presetKey": "preset.skill.testWriter"
-    }
-  ]
-}
-```
-
-用途：前端初始化时展示 “Skill 可用”。
-
-#### `skill_loaded`
-
-当后端检测到 SDK 流里发生 `load_skill` / skill 工具调用时发送：
-
-```json
-{
-  "name": "test-writer",
-  "status": "loaded"
-}
-```
-
-用途：前端在页面中高亮展示 “已加载 test-writer”。
-
-### 4.3 如果 SDK 流中没有明确 `load_skill` 事件
-
-不同 Claude Agent SDK 版本可能不会把真正的 `load_skill` 暴露成稳定字段。建议做兼容策略：
-
-1. 优先检测 SDK message 中的 tool/block 名称是否为 `load_skill`，且参数里包含 `test-writer`；
-2. 如果没有明确事件，则在 stream 开始时发送 `skills_available`；
-3. 当前项目只有一个 skill 时，可以把 `skills_available` 展示为“test-writer skill 已启用”，但不要误写成“已被模型实际调用”；
-4. 只有检测到明确 `load_skill` 时，才展示“已加载/正在使用 test-writer”。
-
----
-
-## 5. 后端实现位置
-
-### 5.1 `agents/chat/index.ts`
-
-当前配置：
-
-```ts
-skills: "all",
-settingSources: ["project"],
-```
-
-保持即可。因为 skill 存放在 `.claude/skills/test-writer/SKILL.md`，`settingSources: ["project"]` 可以让项目级 skill 生效。
-
-### 5.2 `agents/chat/_stream.ts`
-
-建议新增一个静态 skill 元数据常量：
+新增：
 
 ```ts
 const PROJECT_SKILLS = [
   {
-    name: 'test-writer',
-    description: 'Write unit tests and integration tests for code.',
-    presetKey: 'preset.skill.testWriter',
+    name: 'smart-translator',
+    label: '智能翻译',
+    description: 'Translate text between Chinese and English while preserving tone, formatting, terminology, and Markdown structure.',
+    presetKey: 'preset.skill.smartTranslator',
   },
 ];
 ```
@@ -236,11 +310,57 @@ enqueueSse(controller, encoder, 'skills_available', {
 });
 ```
 
-保留或替换原来的 `skills_loaded` 均可。为了兼容现有 debug，可以保留原事件，并新增更语义化的 `skills_available`。
+建议保留原 `skills_loaded` 作为 debug 信息，同时新增 `skills_available` 给 UI 使用。
 
-### 5.3 检测实际 `load_skill`
+### 7.3 推荐新增 `skill_loaded`
 
-在遍历 Claude SDK stream message 时，增加检测函数：
+当后端检测到 Claude SDK stream 中出现 `load_skill` / skill 工具调用时，发送：
+
+```json
+{
+  "name": "smart-translator",
+  "status": "loaded"
+}
+```
+
+SSE：
+
+```ts
+enqueueSse(controller, encoder, 'skill_loaded', {
+  name: 'smart-translator',
+  status: 'loaded',
+});
+```
+
+用途：前端将 `smart-translator` 指示器短暂高亮，展示 “正在使用智能翻译”。
+
+### 7.4 如果 SDK 流中没有明确 `load_skill` 事件
+
+不同 Claude Agent SDK 版本不一定会把真正的 `load_skill` 暴露成稳定字段。兼容策略：
+
+1. 优先检测 SDK message 中是否有 `load_skill` tool/block；
+2. 如果检测不到，只展示 `skills_available`，文案为“智能翻译 skill 已启用”；
+3. 不要把 `skills_available` 误写成“正在使用”；
+4. 只有检测到明确 `load_skill`，才展示“正在使用 smart-translator”。
+
+---
+
+## 8. 后端实现位置
+
+### 8.1 `agents/chat/index.ts`
+
+当前配置：
+
+```ts
+skills: "all",
+settingSources: ["project"],
+```
+
+保持即可。因为 skill 存放在 `.claude/skills/smart-translator/SKILL.md`，`settingSources: ["project"]` 可以让项目级 skill 生效。
+
+### 8.2 `agents/chat/_stream.ts`
+
+推荐新增检测函数：
 
 ```ts
 function detectLoadedSkill(msg: any): string | null {
@@ -251,7 +371,7 @@ function detectLoadedSkill(msg: any): string | null {
 
     if (name === 'load_skill' || name.endsWith('__load_skill')) {
       const skillName = input.skill || input.name || input.skillName;
-      if (skillName === 'test-writer') return 'test-writer';
+      if (skillName === 'smart-translator') return 'smart-translator';
     }
   }
   return null;
@@ -270,19 +390,20 @@ if (loadedSkill) {
 }
 ```
 
-如果 SDK 的实际字段不同，需要根据 debug 面板中的原始消息调整检测逻辑。
+如果 DebugPanel 中看到的实际 SDK 字段不同，再根据实际 raw event 调整检测逻辑。
 
 ---
 
-## 6. 前端 API 层改造
+## 9. 前端 API 层改造
 
 文件：`src/api.ts`
 
-### 6.1 类型新增
+### 9.1 类型新增
 
 ```ts
 export interface SkillInfo {
   name: string;
+  label?: string;
   description?: string;
   presetKey?: string;
 }
@@ -293,7 +414,7 @@ export interface SkillLoadedPayload {
 }
 ```
 
-### 6.2 回调新增
+### 9.2 回调新增
 
 ```ts
 export interface StreamCallbacks {
@@ -307,7 +428,7 @@ export interface StreamCallbacks {
 }
 ```
 
-### 6.3 SSE switch 新增分支
+### 9.3 SSE switch 新增分支
 
 ```ts
 case 'skills_available':
@@ -318,13 +439,11 @@ case 'skill_loaded':
   break;
 ```
 
-如果继续使用原 `skills_loaded`，也可以让它走 `onSkillAvailable`，但 payload 最好改成具体列表。
-
 ---
 
-## 7. 前端 UI 展示方案
+## 10. 前端 UI 展示方案
 
-### 7.1 状态设计
+### 10.1 状态设计
 
 在 `src/types.ts` 新增：
 
@@ -332,6 +451,7 @@ case 'skill_loaded':
 export interface SkillState {
   id: string;
   name: string;
+  label?: string;
   description?: string;
   status: 'available' | 'loaded';
   active: boolean;
@@ -352,6 +472,7 @@ onSkillAvailable(skillList) {
   setSkills(skillList.map(skill => ({
     id: skill.name,
     name: skill.name,
+    label: skill.label,
     description: skill.description,
     status: 'available',
     active: false,
@@ -378,93 +499,121 @@ onSkillLoaded(payload) {
 }
 ```
 
-### 7.2 展示位置
+### 10.2 展示位置
 
-推荐放在 header 右侧当前工具灯旁边，和 `ToolIndicators` 并列：
+推荐放在 header 右侧，和工具灯并列：
 
 ```tsx
 <ToolIndicators lamps={lamps} />
 <SkillIndicators skills={skills} />
 ```
 
-或者直接扩展现有 `ToolIndicators`，新增一个 skill lamp：
+为了改动最小，也可以复用现有 `ToolLamp` 样式，将 skill 当成一种特殊 lamp：
 
 ```ts
 {
-  id: 'skill:test-writer',
-  label: 'test-writer',
-  icon: '🧪',
+  id: 'skill:smart-translator',
+  label: '智能翻译',
+  icon: '译',
   active: false,
   animKey: 0,
 }
 ```
 
-为了改动最小，推荐复用现有灯组件：
+不建议使用 emoji，避免不同系统展示不一致。可以用文字图标 `译`。
 
-- 初始 label：`Skill: test-writer`
-- `skills_available` 后展示灰色/普通状态；
-- `skill_loaded` 后短暂高亮，表示模型加载了该 skill。
+### 10.3 展示文案
 
-### 7.3 i18n 文案
+未触发时：
+
+```txt
+智能翻译 · 已启用
+```
+
+实际检测到 `load_skill` 后：
+
+```txt
+正在使用 smart-translator
+```
+
+如果只实现最小 UI，可只显示：
+
+```txt
+Skill: smart-translator
+```
+
+并在 `skill_loaded` 时短暂高亮。
+
+### 10.4 i18n 文案
 
 `src/i18n/zh.ts`：
 
 ```ts
-"skill.testWriter.label": "测试编写",
-"skill.testWriter.available": "test-writer skill 已启用",
-"skill.testWriter.loaded": "正在使用 test-writer",
+"skill.smartTranslator.label": "智能翻译",
+"skill.smartTranslator.available": "智能翻译 skill 已启用",
+"skill.smartTranslator.loaded": "正在使用 smart-translator",
 ```
 
 `src/i18n/en.ts`：
 
 ```ts
-"skill.testWriter.label": "Test Writer",
-"skill.testWriter.available": "test-writer skill enabled",
-"skill.testWriter.loaded": "Using test-writer",
+"skill.smartTranslator.label": "Smart Translator",
+"skill.smartTranslator.available": "smart-translator skill enabled",
+"skill.smartTranslator.loaded": "Using smart-translator",
 ```
 
 ---
 
-## 8. 推荐最小落地步骤
+## 11. 推荐最小落地步骤
 
 按以下顺序实现：
 
-1. 在 `src/i18n/zh.ts`、`src/i18n/en.ts` 新增 `preset.skill.testWriter`；
-2. 修改 `src/components/ChatInput.tsx`，将 `PRESET_KEYS` 改成只包含 `preset.skill.testWriter`；
-3. 在 `agents/chat/_stream.ts` 新增 `PROJECT_SKILLS`；
-4. stream 开始时新增 SSE `skills_available`，payload 返回 `test-writer` 元数据；
-5. 在 `src/api.ts` 增加 `onSkillAvailable` / `onSkillLoaded` 回调；
-6. 在 `App.tsx` 保存 skill 状态；
-7. 复用 `ToolLamp` 或新增 `SkillIndicators`，在 header 中显示 `test-writer`；
-8. 在 `_stream.ts` 尝试检测 `load_skill` 并发送 `skill_loaded`；
-9. 如果 SDK 不暴露 `load_skill`，前端至少展示 `skills_available`，标记为“已启用”，不要误称“已加载”；
-10. 用预制问题触发一次请求，在 DebugPanel 中确认是否能看到实际 `load_skill` 相关 raw event，再按实际字段补强检测函数。
+1. 删除 `.claude/skills/test-writer/SKILL.md`；
+2. 新增 `.claude/skills/smart-translator/SKILL.md`；
+3. 在 `src/i18n/zh.ts`、`src/i18n/en.ts` 新增 `preset.skill.smartTranslator`；
+4. 修改 `src/components/ChatInput.tsx`，将 `PRESET_KEYS` 改成只包含 `preset.skill.smartTranslator`；
+5. 在 `agents/chat/_stream.ts` 新增 `PROJECT_SKILLS`，描述 `smart-translator`；
+6. stream 开始时新增 SSE `skills_available`，payload 返回 `smart-translator` 元数据；
+7. 在 `src/api.ts` 增加 `onSkillAvailable` / `onSkillLoaded` 回调；
+8. 在 `App.tsx` 保存 skill 状态；
+9. 复用 `ToolLamp` 或新增 `SkillIndicators`，在 header 中显示 `smart-translator`；
+10. 在 `_stream.ts` 尝试检测 `load_skill` 并发送 `skill_loaded`；
+11. 如果 SDK 不暴露 `load_skill`，前端至少展示 `skills_available`，标记为“已启用”，不要误称“正在使用”；
+12. 点击预制问题，观察 DebugPanel 中是否出现实际 `load_skill` 相关 raw event，再按实际字段补强检测函数。
 
 ---
 
-## 9. 验证清单
+## 12. 验证清单
 
-### 9.1 预制问题
+### 12.1 Skill 文件
 
-- 页面只显示一个和 `test-writer` 相关的 preset chip；
-- 点击 preset 后能发送完整问题；
-- 问题内容能稳定触发写测试意图；
-- 中英文切换后 preset 文案正确。
+- `.claude/skills/test-writer/SKILL.md` 已删除；
+- `.claude/skills/smart-translator/SKILL.md` 已新增；
+- front matter 中 `name` 为 `smart-translator`；
+- description 明确包含 `translate`、`localize`、`bilingual content` 等触发词。
 
-### 9.2 Skill 可用展示
+### 12.2 预制问题
+
+- 页面只显示一个和 `smart-translator` 相关的 preset chip；
+- 点击 preset 后能发送完整翻译请求；
+- 问题内容能稳定触发翻译意图；
+- 中英文切换后 preset 文案正确；
+- 响应速度明显快于写测试类任务。
+
+### 12.3 Skill 可用展示
 
 - 发起 `/chat` 后，后端发送 `skills_available`；
-- 前端能显示 `test-writer` skill；
+- 前端能显示 `smart-translator` skill；
 - DebugPanel 能看到 `skills_available` 事件；
 - 不出现 undefined/null 文案。
 
-### 9.3 Skill 实际加载展示
+### 12.4 Skill 实际加载展示
 
-- 如果 SDK stream 中有 `load_skill` 事件，后端能解析出 `test-writer`；
-- 前端收到 `skill_loaded` 后，`test-writer` 指示器短暂高亮；
+- 如果 SDK stream 中有 `load_skill` 事件，后端能解析出 `smart-translator`；
+- 前端收到 `skill_loaded` 后，`smart-translator` 指示器短暂高亮；
 - 如果 SDK 没有明确 `load_skill` 事件，页面只显示“已启用”，不要显示“正在使用”。
 
-### 9.4 回归验证
+### 12.5 回归验证
 
 - 原有 `tool_called` 灯效不受影响；
 - 原有 SSE 文本流不受影响；
@@ -473,9 +622,10 @@ onSkillLoaded(payload) {
 
 ---
 
-## 10. 注意事项
+## 13. 注意事项
 
-- 不建议前端直接读取 `.claude/skills/test-writer/SKILL.md`，因为浏览器打包后不一定能访问该文件；推荐用 i18n 或显式 skill catalog 配置。
-- 不建议把“skills: all”直接展示给用户，它不是具体 skill 名。
+- 不建议前端直接读取 `.claude/skills/smart-translator/SKILL.md`，浏览器打包后不一定能访问该文件；推荐使用 i18n 或显式 skill catalog 配置。
+- 不建议把 `skills: "all"` 直接展示给用户，它不是具体 skill 名。
 - 如果要表达“实际 load_skill”，必须以后端 stream 中检测到的事件为准；否则只能表达“skill available/enabled”。
-- 当前只有一个 skill，可以硬编码 `test-writer`，但最好把元数据集中到一个常量，方便后续扩展。
+- 当前只有一个 skill，可以硬编码 `smart-translator`，但最好把元数据集中到一个常量，方便后续扩展。
+- 翻译类 skill 不展示工具调用能力，但非常适合稳定展示 skill 加载和指示器高亮。

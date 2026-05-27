@@ -14,9 +14,12 @@ const en = {
 
   // Preset questions
   "preset.1": "Use terminal commands to check the current system time and OS version.",
-  "preset.2": "Create /tmp/hello.txt with content \"Hello EdgeOne\", then read it back.",
-  "preset.3": "Use Python to calculate and print the first 10 Fibonacci numbers.",
+  "preset.2": "Create /tmp/fib.py, write Python code to calculate the first 10 Fibonacci numbers, execute it, and print the result.",
   "preset.4": "Visit https://edgeone.ai and summarize the page content.",
+  "preset.skill.smartTranslator": "Use smart-translator skill to translate into Chinese: EdgeOne Pages Agent helps developers quickly build AI Agent apps.",
+
+  // Skill indicators
+  "skill.smartTranslator": "Smart Translator",
 
   // Tool indicators
   "tool.commands": "Commands",
