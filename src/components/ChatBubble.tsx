@@ -1,6 +1,6 @@
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
-import type { Message } from '../types';
+import type { Message, ImageAttachment } from '../types';
 import styles from './ChatBubble.module.css';
 
 interface Props {
@@ -50,6 +50,24 @@ function normalizeMarkdown(content: string): string {
     .join('\n');
 }
 
+/** Determine the image src for rendering. Supports both ImageAttachment and legacy base64 strings. */
+function getImageSrc(img: ImageAttachment | string): string {
+  if (typeof img === 'string') {
+    // Legacy base64 string — render as data URI
+    return `data:image/png;base64,${img}`;
+  }
+  // ImageAttachment — use blob: URL if available
+  return img.url || '';
+}
+
+/** Get alt text for an image. */
+function getImageAlt(img: ImageAttachment | string, idx: number): string {
+  if (typeof img === 'string') {
+    return `tool result ${idx + 1}`;
+  }
+  return `screenshot ${img.id.slice(0, 8)}`;
+}
+
 export default function ChatBubble({ message }: Props) {
   const isUser = message.role === 'user';
   const content = isUser ? message.content : normalizeMarkdown(message.content);
@@ -67,14 +85,18 @@ export default function ChatBubble({ message }: Props) {
         }
         {images.length > 0 && (
           <div className={styles.imageList}>
-            {images.map((base64, idx) => (
-              <img
-                key={idx}
-                className={styles.image}
-                src={`data:image/png;base64,${base64}`}
-                alt={`tool result ${idx + 1}`}
-              />
-            ))}
+            {images.map((img, idx) => {
+              const src = getImageSrc(img);
+              if (!src) return null;
+              return (
+                <img
+                  key={typeof img === 'string' ? idx : img.id}
+                  className={styles.image}
+                  src={src}
+                  alt={getImageAlt(img, idx)}
+                />
+              );
+            })}
           </div>
         )}
         <span className={styles.time}>

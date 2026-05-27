@@ -6,9 +6,14 @@
  *
  * Reads conversation history from ctx.store.getMessages() and returns
  * it to the frontend for restoring the chat window after a page refresh.
+ *
+ * Note: base64Image content is redacted from history responses to avoid
+ * sending large payloads to the frontend. Images are restored from
+ * client-side IndexedDB instead.
  */
 
 import { createLogger } from '../_logger';
+import { redactBase64InText } from '../_redact';
 
 const logger = createLogger('history');
 
@@ -26,13 +31,13 @@ function jsonResponse(data: unknown, status = 200): Response {
 }
 
 function contentToText(content: unknown): string {
-  if (typeof content === 'string') return content;
+  if (typeof content === 'string') return redactBase64InText(content);
 
   if (content !== null && typeof content === 'object' && !Array.isArray(content)) {
     const obj = content as Record<string, unknown>;
     if ('content' in obj) return contentToText(obj.content);
     if ('output' in obj) return contentToText(obj.output);
-    if ('text' in obj) return String(obj.text ?? '');
+    if ('text' in obj) return redactBase64InText(String(obj.text ?? ''));
     return '';
   }
 
@@ -41,7 +46,10 @@ function contentToText(content: unknown): string {
       .filter((item): item is Record<string, unknown> =>
         item !== null && typeof item === 'object',
       )
-      .map(item => String(item.text ?? item.output_text ?? ''))
+      .map(item => {
+        const text = String(item.text ?? item.output_text ?? '');
+        return redactBase64InText(text);
+      })
       .filter(Boolean)
       .join('\n');
   }

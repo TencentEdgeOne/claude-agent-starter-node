@@ -1,0 +1,113 @@
+╔═══════════════════════════════════════════════════════════════════════════════╗
+║                    DUPLICATE CODE FINDINGS SUMMARY                            ║
+╚═══════════════════════════════════════════════════════════════════════════════╝
+
+┌─ FINDING #1: IndexedDB openDB() Pattern ────────────────────────────────────┐
+│                                                                               │
+│  Files:  • src/lib/imageStore.ts (lines 34-57)                              │
+│          • src/lib/chatUiStore.ts (lines 27-48)                             │
+│                                                                               │
+│  Code Pattern:                          Same in both files:                  │
+│    • let dbPromise: Promise<...>        ✓ Promise caching                    │
+│    • function openDB()                  ✓ onupgradeneeded handler            │
+│    • indexedDB.open()                   ✓ onsuccess/onerror pattern          │
+│    • onupgradeneeded callback           ✓ Return typed Promise               │
+│                                                                               │
+│  Diff Only: DB_NAME, DB_VERSION, store creation logic                       │
+│                                                                               │
+│  Impact:     MEDIUM - Maintenance burden when updating error handling         │
+│  Solution:   Create src/lib/indexedDbHelper.ts with generic factory          │
+│                                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌─ FINDING #2: Base64 Redaction Regex (3 INSTANCES) ──────────────────────────┐
+│                                                                               │
+│  Exact Regex Pattern (appears 3x):                                            │
+│    /"base64Image"\s*:\s*"[A-Za-z0-9+/=]{100,}"/g                            │
+│                                                                               │
+│  File Locations:                                                              │
+│    1. agents/chat/_stream.ts       (line 37)                                 │
+│       ↳ Replacement: "[REDACTED image data]"                                │
+│                                                                               │
+│    2. agents/chat/index.ts         (line 45)                                 │
+│       ↳ Replacement: "[screenshot image saved to client]"                    │
+│                                                                               │
+│    3. agents/history/index.ts      (line 35)                                 │
+│       ↳ Replacement: "[image stored on client]"                             │
+│                                                                               │
+│  Impact:     HIGH - Any regex bug fix requires 3x changes (60% rework)       │
+│  Solution:   Create agents/_sanitize.ts with shared regex constant           │
+│                                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌─ FINDING #3: Recursive Sanitization Logic (2 INSTANCES) ────────────────────┐
+│                                                                               │
+│  Files with identical patterns:                                               │
+│    1. agents/chat/_stream.ts       (lines 34-55) → redactBase64()            │
+│    2. agents/chat/index.ts         (lines 41-65) → sanitizeSessionData()     │
+│                                                                               │
+│  Duplicate Logic:                                                             │
+│    ✓ String traversal (text.replace)                                         │
+│    ✓ Array recursion (map + recursive call)                                  │
+│    ✓ Object recursion (key-value iteration)                                  │
+│    ✓ Type checking for 'base64Image' keys (string, length > 100)             │
+│                                                                               │
+│  Impact:     MEDIUM - Bug fixes to recursion must be applied in 2 places     │
+│  Solution:   Use shared sanitization utility (agents/_sanitize.ts)           │
+│                                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌─ FINDING #4: Base64 → Blob Conversion ──────────────────────────────────────┐
+│                                                                               │
+│  File:  src/lib/imageStore.ts (lines 60-67)                                 │
+│                                                                               │
+│  Function: base64ToBlob(base64, mimeType)                                    │
+│    • Converts base64 string → Uint8Array → Blob                             │
+│    • Uses: atob(), charCodeAt(), Blob constructor                           │
+│                                                                               │
+│  Usage:  • src/App.tsx (imported & used)                                     │
+│          • Imported in 1 frontend file                                       │
+│                                                                               │
+│  Impact:     LOW - Currently unique and well-positioned                       │
+│  Solution:   KEEP in imageStore.ts (domain-specific)                         │
+│              Monitor for future cross-module usage (threshold: 3+ modules)   │
+│                                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+┌─ FINDING #5: Object URL Lifecycle Management ───────────────────────────────┐
+│                                                                               │
+│  File:  src/lib/imageStore.ts (lines 154-181)                               │
+│                                                                               │
+│  Functions:                                                                   │
+│    • createObjectUrl(storageKey, blob)    → URL.createObjectURL()           │
+│    • revokeObjectUrl(storageKey)          → URL.revokeObjectURL()           │
+│    • revokeAllObjectUrls()                → revoke all + clear map          │
+│                                                                               │
+│  Tracks:  activeUrls Map<string, string>  (storageKey → objectURL)           │
+│                                                                               │
+│  Impact:     LOW - Currently unique and well-positioned                       │
+│  Solution:   KEEP in imageStore.ts (image storage specific)                  │
+│              Extract only if 3+ modules need URL lifecycle management        │
+│                                                                               │
+└───────────────────────────────────────────────────────────────────────────────┘
+
+═══════════════════════════════════════════════════════════════════════════════
+
+PRIORITY FIXES:
+
+  1️⃣  HIGH PRIORITY: Create agents/_sanitize.ts
+      • Consolidate base64Image regex (fixes 3 duplicate patterns)
+      • Centralize recursive sanitization logic
+      • Effort: ~45 lines; Impact: 3 files updated
+
+  2️⃣  MEDIUM PRIORITY: Create src/lib/indexedDbHelper.ts
+      • Factory for IndexedDB initialization
+      • Eliminates openDB() duplication
+      • Effort: ~35 lines; Impact: 2 files updated
+
+  3️⃣  LOW PRIORITY: Monitor growth of base64/blob handling
+      • Keep base64ToBlob in imageStore.ts
+      • Keep URL management in imageStore.ts
+      • Trigger extraction only at 3+ file threshold
+
+═══════════════════════════════════════════════════════════════════════════════

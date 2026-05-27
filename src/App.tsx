@@ -1,8 +1,18 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
-import type { Message, ToolLampState } from './types';
+import type { Message, ToolLampState, ImageAttachment, ImageSsePayload } from './types';
 import { fetchConversationHistory, sendMessageStream, stopAgent } from './api';
 import type { RawSseEvent } from './api';
 import { I18nProvider, LangToggle, useT, MessageKeys } from './i18n';
+import {
+  base64ToBlob,
+  saveImage,
+  loadConversationImages,
+  deleteConversationImages,
+  createObjectUrl,
+  revokeAllObjectUrls,
+  makeStorageKey,
+} from './lib/imageStore';
+import { saveSnapshot, loadSnapshot, deleteSnapshot } from './lib/chatUiStore';
 import ToolIndicators from './components/ToolIndicators';
 import ChatWindow from './components/ChatWindow';
 import ChatInput from './components/ChatInput';
@@ -82,6 +92,27 @@ function AppInner() {
   const abortCtrlRef = useRef<AbortController | null>(null);
   const conversationIdRef = useRef<string>(getOrCreateConversationId());
 
+  // Guard: don't overwrite snapshot during initial restore phase.
+  // Only start persisting once user has interacted (sent a message).
+  const initDoneRef = useRef(false);
+
+  // Persist UI snapshot whenever messages change (debounced)
+  const snapshotTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => {
+    if (messages.length === 0) return;
+    if (!initDoneRef.current) return; // Skip snapshot save during restore phase
+
+    if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
+    snapshotTimerRef.current = setTimeout(() => {
+      saveSnapshot(conversationIdRef.current, messages);
+    }, 500);
+
+    return () => {
+      if (snapshotTimerRef.current) clearTimeout(snapshotTimerRef.current);
+    };
+  }, [messages]);
+
+  // Load history: merge backend text history with local UI snapshot for image refs
   useEffect(() => {
     // First visit: no existing conversation → skip history fetch for instant load
     if (!getExistingConversationId()) {
@@ -92,9 +123,53 @@ function AppInner() {
     if (_historyFetchInFlight) return;
     _historyFetchInFlight = true;
 
-    fetchConversationHistory(conversationIdRef.current).then(history => {
-      if (history.length > 0) {
-        setMessages(history);
+    const convId = conversationIdRef.current;
+
+    Promise.all([
+      fetchConversationHistory(convId),
+      loadSnapshot(convId),
+      loadConversationImages(convId),
+    ]).then(([history, snapshot, storedImages]) => {
+      // Build a map of imageId → blob URL from IndexedDB
+      const imageUrlMap = new Map<string, { url: string; mimeType: string; size: number; storageKey: string }>();
+      for (const record of storedImages) {
+        const url = createObjectUrl(record.storageKey, record.blob);
+        imageUrlMap.set(record.imageId, {
+          url,
+          mimeType: record.mimeType,
+          size: record.size,
+          storageKey: record.storageKey,
+        });
+      }
+
+      // Rebuild blob: URLs for snapshot image attachments
+      function rebuildImages(images: Message['images']): Message['images'] {
+        if (!images || images.length === 0) return images;
+        return images.map(img => {
+          if (typeof img === 'string') return img;
+          const urlInfo = imageUrlMap.get(img.id);
+          return urlInfo ? { ...img, url: urlInfo.url, persistent: true } : img;
+        });
+      }
+
+      let merged: Message[];
+
+      if (snapshot.length > 0) {
+        // Snapshot is the authoritative UI source (contains image refs).
+        // Rebuild blob: URLs from IndexedDB for each image attachment.
+        merged = snapshot.map(msg => ({
+          ...msg,
+          images: rebuildImages(msg.images),
+        }));
+      } else if (history.length > 0) {
+        // No local snapshot: fall back to backend history (text only, no images).
+        merged = history;
+      } else {
+        merged = [];
+      }
+
+      if (merged.length > 0) {
+        setMessages(merged);
       }
     }).finally(() => {
       _historyFetchInFlight = false;
@@ -113,12 +188,50 @@ function AppInner() {
     );
   }, []);
 
-  /** Append an image to the current bot message. */
-  const appendBotImage = useCallback((base64: string) => {
+  /** Handle an incoming image SSE event: persist to IndexedDB and append ref to message. */
+  const handleImageEvent = useCallback(async (payload: ImageSsePayload) => {
+    const { imageId, base64, mimeType = 'image/png', size } = payload;
+    const convId = conversationIdRef.current;
+    const msgId = botMsgIdRef.current;
+    const storageKey = makeStorageKey(convId, imageId);
+
+    // Decode once — reused by both success and fallback paths
+    const blob = base64ToBlob(base64, mimeType);
+    const actualSize = size || blob.size;
+    let persistent = false;
+
+    try {
+      await saveImage({
+        conversationId: convId,
+        messageId: msgId,
+        imageId,
+        blob,
+        mimeType,
+      });
+      persistent = true;
+    } catch (e) {
+      console.warn('[image] IndexedDB save failed, using temporary URL:', e);
+    }
+
+    // Create runtime URL (persistent uses managed cache, fallback uses raw objectURL)
+    const url = persistent
+      ? createObjectUrl(storageKey, blob)
+      : URL.createObjectURL(blob);
+
+    const attachment: ImageAttachment = {
+      id: imageId,
+      storageKey,
+      url,
+      mimeType,
+      size: actualSize,
+      createdAt: Date.now(),
+      persistent,
+    };
+
     setMessages(prev =>
       prev.map(m =>
-        m.id === botMsgIdRef.current
-          ? { ...m, images: [...(m.images || []), base64] }
+        m.id === msgId
+          ? { ...m, images: [...(m.images || []), attachment] }
           : m
       )
     );
@@ -130,6 +243,9 @@ function AppInner() {
   }, []);
 
   const handleSend = useCallback(async (text: string) => {
+    // User has interacted — allow snapshot persistence from now on
+    initDoneRef.current = true;
+
     const userMsg: Message = {
       id: crypto.randomUUID(),
       role: 'user',
@@ -169,8 +285,8 @@ function AppInner() {
         }, 1000);
       },
 
-      onImage(base64) {
-        appendBotImage(base64);
+      onImage(payload) {
+        handleImageEvent(payload);
       },
 
       onRawEvent(event) {
@@ -183,12 +299,19 @@ function AppInner() {
         updateBotMessage(content => content || t("status.error"));
         finishStream();
       },
-    }, conversationIdRef.current);
+    }, conversationIdRef.current, { userMsgId: userMsg.id, botMsgId });
 
     abortCtrlRef.current = ctrl;
-  }, [updateBotMessage, appendBotImage, finishStream, t]);
+  }, [updateBotMessage, handleImageEvent, finishStream, t]);
 
   const handleClearHistory = useCallback(() => {
+    const oldConvId = conversationIdRef.current;
+
+    // Cleanup IndexedDB images and UI snapshot for old conversation
+    revokeAllObjectUrls();
+    deleteConversationImages(oldConvId).catch(() => {});
+    deleteSnapshot(oldConvId).catch(() => {});
+
     localStorage.removeItem(CONVERSATION_ID_STORAGE_KEY);
     const newId = crypto.randomUUID();
     localStorage.setItem(CONVERSATION_ID_STORAGE_KEY, newId);
