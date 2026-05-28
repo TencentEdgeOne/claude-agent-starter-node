@@ -1,6 +1,6 @@
 # Claude Agent Starter
 
-基于 Anthropic Claude Agent SDK 的 EdgeOne Pages Agent 全栈项目模板。
+基于 Anthropic Claude Agent SDK 的 EdgeOne Makers Agent 全栈项目模板。
 
 ## 功能
 
@@ -18,7 +18,7 @@ claude-agent-starter/
 │   ├── App.tsx             # 主应用（conversation_id 管理）
 │   ├── api.ts              # /chat, /stop, /history 请求封装
 │   └── components/         # ChatWindow, ChatInput, CodeViewer, ToolIndicators 等
-├── agents/                 # Node/TS EdgeOne Pages Functions（后端）
+├── agents/                 # Node/TS EdgeOne Makers（后端）
 │   ├── chat/index.ts       # POST /chat — SSE 流式聊天
 │   ├── stop/index.ts       # POST /stop — 中断 agent
 │   ├── history/index.ts    # POST /history — 对话历史
@@ -55,13 +55,13 @@ npm install
 ### 3. 本地开发
 
 ```bash
-edgeone pages dev
+edgeone makers dev
 ```
 
 ### 4. 构建
 
 ```bash
-edgeone pages build
+edgeone makers build
 ```
 
 ## API 接口

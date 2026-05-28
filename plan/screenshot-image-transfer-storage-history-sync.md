@@ -508,7 +508,7 @@ localStorage.removeItem(CONVERSATION_ID_STORAGE_KEY);
 
 两个层面的问题：
 
-**层面一：store SDK 可能不支持。** 有些 store SDK（如 EdgeOne Pages 的内置 store）会忽略自定义 `messageId` 字段，使用自动生成的 ID。此时后端 history 的消息 ID 永远和前端 UUID 对不上。
+**层面一：store SDK 可能不支持。** 有些 store SDK（如 EdgeOne Makers 的内置 store）会忽略自定义 `messageId` 字段，使用自动生成的 ID。此时后端 history 的消息 ID 永远和前端 UUID 对不上。
 
 **层面二：即使 ID 对齐了，后端可能不保存图片消息。** 如果本轮助手没有文本，后端可能不会保存 assistant 消息；或者 `/history` 会跳过空内容消息。此时前端 snapshot 中有图片消息，但后端 history 没有对应消息。如果恢复逻辑只遍历后端 history，就会把图片消息丢掉。
 
