@@ -1,5 +1,5 @@
 /**
- * Agent handler — EdgeOne Pages Functions
+ * Agent handler — EdgeOne Makers
  * ========================================
  *
  * File path agents/chat/index.ts maps to **POST /chat**
@@ -129,7 +129,7 @@ export async function onRequest(context: any) {
   }
 
   if (typeof context.tools?.toClaudeMcpServer !== 'function') {
-    throw new Error('context.tools.toClaudeMcpServer is unavailable. Please upgrade the EdgeOne Pages agent runtime.');
+    throw new Error('context.tools.toClaudeMcpServer is unavailable. Please upgrade the EdgeOne Makers agent runtime.');
   }
 
   const edgeoneMcp = context.tools.toClaudeMcpServer();

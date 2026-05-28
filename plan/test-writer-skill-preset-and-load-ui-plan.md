@@ -142,7 +142,7 @@ Only include `Notes` when there are important terminology, tone, or localization
 推荐使用短、稳定、容易展示的 preset：
 
 ```txt
-请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Pages Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。
+请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Makers Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。
 ```
 
 优点：
@@ -156,7 +156,7 @@ Only include `Notes` when there are important terminology, tone, or localization
 ### 4.2 英文预制问题
 
 ```txt
-Use the smart-translator skill to translate this sentence into Chinese while keeping a professional landing-page tone: EdgeOne Pages Agent supports streaming chat, tool calling, and session memory, helping developers quickly build AI Agent applications.
+Use the smart-translator skill to translate this sentence into Chinese while keeping a professional landing-page tone: EdgeOne Makers Agent supports streaming chat, tool calling, and session memory, helping developers quickly build AI Agent applications.
 ```
 
 ### 4.3 按钮展示文案
@@ -172,7 +172,7 @@ Use the smart-translator skill to translate this sentence into Chinese while kee
 实际发送内容：
 
 ```txt
-请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Pages Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。
+请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Makers Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。
 ```
 
 当前项目的 `ChatInput` 是直接把 i18n 文案作为发送内容，因此最小实现中按钮文案和发送内容可以先保持一致。后续如果要优化展示，可以把 `labelKey` 和 `promptKey` 拆开。
@@ -211,13 +211,13 @@ const PRESET_KEYS = ['preset.skill.smartTranslator'] as const;
 `src/i18n/zh.ts`：
 
 ```ts
-"preset.skill.smartTranslator": "请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Pages Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。",
+"preset.skill.smartTranslator": "请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Makers Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。",
 ```
 
 `src/i18n/en.ts`：
 
 ```ts
-"preset.skill.smartTranslator": "Use the smart-translator skill to translate this sentence into Chinese while keeping a professional landing-page tone: EdgeOne Pages Agent supports streaming chat, tool calling, and session memory, helping developers quickly build AI Agent applications.",
+"preset.skill.smartTranslator": "Use the smart-translator skill to translate this sentence into Chinese while keeping a professional landing-page tone: EdgeOne Makers Agent supports streaming chat, tool calling, and session memory, helping developers quickly build AI Agent applications.",
 ```
 
 ### 5.4 可选：拆分按钮 label 和发送 prompt
@@ -237,7 +237,7 @@ const PRESETS = [
 
 ```ts
 "preset.skill.smartTranslator.label": "翻译产品介绍",
-"preset.skill.smartTranslator.prompt": "请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Pages Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。",
+"preset.skill.smartTranslator.prompt": "请使用 smart-translator skill，把这句话翻译成英文，保持官网产品文案风格：EdgeOne Makers Agent 支持流式对话、工具调用和会话记忆，帮助开发者快速构建 AI Agent 应用。",
 ```
 
 最小实现可以先不做拆分。

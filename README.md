@@ -1,6 +1,6 @@
 # Claude Agent Starter
 
-A full-stack EdgeOne Pages Agent template powered by Anthropic Claude Agent SDK.
+A full-stack EdgeOne Makers Agent template powered by Anthropic Claude Agent SDK.
 
 ## Features
 
@@ -18,7 +18,7 @@ claude-agent-starter/
 │   ├── App.tsx             # Main app (conversation_id management)
 │   ├── api.ts              # /chat, /stop, /history request wrappers
 │   └── components/         # ChatWindow, ChatInput, CodeViewer, ToolIndicators, etc.
-├── agents/                 # Node/TS EdgeOne Pages Functions (backend)
+├── agents/                 # Node/TS EdgeOne Makers (backend)
 │   ├── chat/index.ts       # POST /chat — SSE streaming chat
 │   ├── stop/index.ts       # POST /stop — abort active agent
 │   ├── history/index.ts    # POST /history — conversation history
@@ -55,13 +55,13 @@ npm install
 ### 3. Local Development
 
 ```bash
-edgeone pages dev
+edgeone makers dev
 ```
 
 ### 4. Build
 
 ```bash
-edgeone pages build
+edgeone makers build
 ```
 
 ## API Endpoints

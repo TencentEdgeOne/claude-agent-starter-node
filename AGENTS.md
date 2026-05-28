@@ -4,7 +4,7 @@ This file provides guidance to Codex (Codex.ai/code) when working with code in t
 
 ## Project Overview
 
-A full-stack Codex Agent starter template running on EdgeOne Pages. The frontend is a React chat UI that communicates with backend "agents" (EdgeOne Pages Functions) via SSE streaming. The backend uses the Codex Agent SDK to invoke Codex with MCP tools in a sandboxed environment.
+A full-stack Codex Agent starter template running on EdgeOne Makers. The frontend is a React chat UI that communicates with backend "agents" (EdgeOne Makers) via SSE streaming. The backend uses the Codex Agent SDK to invoke Codex with MCP tools in a sandboxed environment.
 
 ## Development Commands
 
@@ -12,7 +12,7 @@ A full-stack Codex Agent starter template running on EdgeOne Pages. The frontend
 # Install dependencies
 npm install
 
-# Local dev (recommended — starts both frontend + backend via EdgeOne Pages)
+# Local dev (recommended — starts both frontend + backend via EdgeOne Makers)
 npm run dev:agents
 
 # Frontend-only Vite dev server (port 5173)
@@ -45,7 +45,7 @@ React 18 + TypeScript + Vite. CSS Modules for styling (`.module.css` files coloc
 
 ### Backend (`agents/`)
 
-EdgeOne Pages Functions (Node.js/TypeScript). File path maps directly to route:
+EdgeOne Makers (Node.js/TypeScript). File path maps directly to route:
 
 | File | Route | Purpose |
 |------|-------|---------|
