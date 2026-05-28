@@ -58,10 +58,10 @@ function wrapSessionStoreWithSanitizer(originalStore: any): any {
   return {
     ...originalStore,
     write: originalStore.write
-      ? async (...args: any[]) => originalStore.write(...args.map(redactBase64Deep))
+      ? async (...args: any[]) => originalStore.write(...args.map(arg => redactBase64Deep(arg)))
       : undefined,
     append: originalStore.append
-      ? async (...args: any[]) => originalStore.append(...args.map(redactBase64Deep))
+      ? async (...args: any[]) => originalStore.append(...args.map(arg => redactBase64Deep(arg)))
       : undefined,
     set: originalStore.set
       ? async (key: string, value: unknown) => originalStore.set(key, redactBase64Deep(value))
