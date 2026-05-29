@@ -28,7 +28,7 @@ const zh = {
   "tool.browser": "浏览器",
 
   // Debug panel
-  "debug.title": "SSE 调试",
+  "debug.title": "Trace",
   "debug.events": "事件",
   "debug.clear": "清除",
   "debug.empty": "等待 SSE 事件...",
