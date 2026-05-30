@@ -59,13 +59,6 @@ function isWebSearchToolEvent(event: RawSseEvent): boolean {
   return tool === 'web_search' || tool === 'browser';
 }
 
-function isWebSearchSkillEvent(event: RawSseEvent): boolean {
-  if (event.eventType !== 'skill_loaded' || !event.data || typeof event.data !== 'object') {
-    return false;
-  }
-  return (event.data as { name?: unknown }).name === 'web-search';
-}
-
 // Module-level dedup flag — outside React lifecycle, unaffected by StrictMode
 let _historyFetchInFlight = false;
 
@@ -339,9 +332,7 @@ function AppInner() {
       },
 
       onRawEvent(event) {
-        if (isWebSearchSkillEvent(event)) {
-          setBotActivity({ type: 'web_search', label: 'Web searching...', status: 'active' });
-        } else if (!isWebSearchToolEvent(event)) {
+        if (!isWebSearchToolEvent(event)) {
           finishBotActivity();
         }
         if (event.eventType === 'text_delta') return;

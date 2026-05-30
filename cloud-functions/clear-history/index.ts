@@ -19,11 +19,50 @@ function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
 }
 
+async function readRequestBody(context: any): Promise<Record<string, unknown>> {
+  const body = context.request?.body;
+  if (body instanceof Uint8Array) {
+    try {
+      return JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+
+  if (body && typeof body === 'object' && !Array.isArray(body)) {
+    return body as Record<string, unknown>;
+  }
+
+  if (typeof body === 'string') {
+    try {
+      return JSON.parse(body) as Record<string, unknown>;
+    } catch {
+      return {};
+    }
+  }
+
+  if (typeof context.request?.json === 'function') {
+    try {
+      return await context.request.json();
+    } catch {
+      return {};
+    }
+  }
+
+  return {};
+}
+
+function getConversationId(body: Record<string, unknown>): string {
+  const value = body.conversation_id ?? body.conversationId;
+  return typeof value === 'string' ? value : '';
+}
+
 export async function onRequest(context: any) {
   const startTime = Date.now();
   logger.log(`[clear-history] start: ${new Date(startTime).toISOString()}`);
 
-  const conversationId: string = context.conversation_id ?? '';
+  const body = await readRequestBody(context);
+  const conversationId = getConversationId(body);
   const store = context.store ?? null;
 
   logger.log('conversationId:', conversationId);
