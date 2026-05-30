@@ -16,10 +16,10 @@ const zh = {
   "preset.1": "使用终端命令检查当前系统时间和操作系统版本。",
   "preset.2": "创建 /tmp/fib.py，写入计算斐波那契数列前 10 项的 Python 代码并执行，将结果打印出来。",
   "preset.4": "访问 https://edgeone.ai 并总结页面内容。",
-  "preset.skill.smartTranslator": "用 smart-translator skill 翻译成英文：EdgeOne Makers Agent 帮助开发者快速构建 AI Agent 应用。",
+  "preset.skill.webSearch": "使用网络搜索：“当前市值最高的5个公司”",
 
   // Skill indicators
-  "skill.smartTranslator": "智能翻译",
+  "skill.webSearch": "网络搜索",
 
   // Tool indicators
   "tool.commands": "命令行",

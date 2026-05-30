@@ -44,7 +44,7 @@ export default function ChatWindow({ messages, loading }: Props) {
       ))}
 
       {/* Show typing indicator only when loading and assistant message has no content yet */}
-      {loading && !(messages.length > 0 && messages[messages.length - 1].role === 'assistant' && messages[messages.length - 1].content.length > 0) && (
+      {loading && !(messages.length > 0 && messages[messages.length - 1].role === 'assistant' && (messages[messages.length - 1].content.length > 0 || messages[messages.length - 1].activity)) && (
         <div className={styles.typingRow}>
           <div className={styles.avatar}>⬡</div>
           <div className={styles.typing}>

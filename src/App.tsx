@@ -51,6 +51,21 @@ function getOrCreateConversationId(): string {
   return conversationId;
 }
 
+function isWebSearchToolEvent(event: RawSseEvent): boolean {
+  if (event.eventType !== 'tool_called' || !event.data || typeof event.data !== 'object') {
+    return false;
+  }
+  const tool = (event.data as { tool?: unknown }).tool;
+  return tool === 'web_search' || tool === 'browser';
+}
+
+function isWebSearchSkillEvent(event: RawSseEvent): boolean {
+  if (event.eventType !== 'skill_loaded' || !event.data || typeof event.data !== 'object') {
+    return false;
+  }
+  return (event.data as { name?: unknown }).name === 'web-search';
+}
+
 // Module-level dedup flag — outside React lifecycle, unaffected by StrictMode
 let _historyFetchInFlight = false;
 
@@ -191,6 +206,30 @@ function AppInner() {
     );
   }, []);
 
+  const setBotActivity = useCallback((activity: Message['activity']) => {
+    setMessages(prev =>
+      prev.map(m =>
+        m.id === botMsgIdRef.current
+          ? { ...m, activity }
+          : m
+      )
+    );
+  }, []);
+
+  const finishBotActivity = useCallback(() => {
+    setMessages(prev => {
+      let changed = false;
+      const next = prev.map(m => {
+        if (m.id === botMsgIdRef.current && m.activity?.status === 'active') {
+          changed = true;
+          return { ...m, activity: { ...m.activity, status: 'done' as const } };
+        }
+        return m;
+      });
+      return changed ? next : prev;
+    });
+  }, []);
+
   /** Handle an incoming image SSE event: persist to IndexedDB and append ref to message. */
   const handleImageEvent = useCallback(async (payload: ImageSsePayload) => {
     const { imageId, base64, mimeType = 'image/png', size } = payload;
@@ -271,10 +310,15 @@ function AppInner() {
 
     const ctrl = sendMessageStream(text, {
       onTextDelta(delta) {
+        finishBotActivity();
         updateBotMessage(content => content + delta);
       },
 
       onToolCalled(toolName) {
+        if (toolName === 'web_search' || toolName === 'browser') {
+          setBotActivity({ type: 'web_search', label: 'Web searching...', status: 'active' });
+        }
+
         setLamps(prev =>
           prev.map(l =>
             l.id === toolName
@@ -290,29 +334,39 @@ function AppInner() {
       },
 
       onImage(payload) {
+        finishBotActivity();
         handleImageEvent(payload);
       },
 
       onRawEvent(event) {
+        if (isWebSearchSkillEvent(event)) {
+          setBotActivity({ type: 'web_search', label: 'Web searching...', status: 'active' });
+        } else if (!isWebSearchToolEvent(event)) {
+          finishBotActivity();
+        }
+        if (event.eventType === 'text_delta') return;
         setRightPanelMode('debug');
         setDebugEvents(prev => [...prev, event]);
-        // Show brief "skills loading" indicator when skill is actually loaded
-        if (event.eventType === 'skills_available') {
+        if (event.eventType === 'skills_available' || event.eventType === 'skill_loaded') {
           setSkillsLoading(true);
           setTimeout(() => setSkillsLoading(false), 2000);
         }
       },
 
-      onDone: finishStream,
+      onDone() {
+        finishBotActivity();
+        finishStream();
+      },
 
       onError() {
+        finishBotActivity();
         updateBotMessage(content => content || t("status.error"));
         finishStream();
       },
     }, conversationIdRef.current, { userMsgId: userMsg.id, botMsgId });
 
     abortCtrlRef.current = ctrl;
-  }, [updateBotMessage, handleImageEvent, finishStream, t]);
+  }, [updateBotMessage, setBotActivity, finishBotActivity, handleImageEvent, finishStream, t]);
 
   const handleClearHistory = useCallback(() => {
     const oldConvId = conversationIdRef.current;
@@ -346,6 +400,7 @@ function AppInner() {
     }
 
     // 2. Optimistic UI: show stopped immediately without waiting for backend
+    finishBotActivity();
     updateBotMessage(content => content ? content + '\n\n' + t("status.stopped") : t("status.stopped"));
     setLoading(false);
 
@@ -355,7 +410,7 @@ function AppInner() {
         updateBotMessage(content => content + '\n\n' + t("status.backendError"));
       }
     });
-  }, [updateBotMessage, t]);
+  }, [finishBotActivity, updateBotMessage, t]);
 
   return (
     <div className={styles.shell}>
@@ -364,11 +419,6 @@ function AppInner() {
 
       <div className={styles.stage}>
         <div className={styles.chatPanel}>
-          {historyLoading && messages.length === 0 && (
-            <div className={styles.historyOverlay}>
-              <div className={styles.historySpinner} />
-            </div>
-          )}
           <header className={styles.header}>
             <div className={styles.headerLeft}>
               <span className={styles.logo}>⬡</span>
@@ -378,10 +428,17 @@ function AppInner() {
               </div>
             </div>
             <ToolIndicators lamps={lamps} />
-            {skillsLoading && <span className={styles.skillsLoading}>skills loading...</span>}
+            {skillsLoading && <span className={styles.skillsLoading}>loading skills...</span>}
           </header>
 
-          <ChatWindow messages={messages} loading={loading} />
+          <div className={styles.chatWindowShell}>
+            <ChatWindow messages={messages} loading={loading} />
+            {historyLoading && messages.length === 0 && (
+              <div className={styles.historyOverlay}>
+                <div className={styles.historySpinner} />
+              </div>
+            )}
+          </div>
           <ChatInput onSend={handleSend} onStop={handleStop} onClear={handleClearHistory} disabled={loading} />
         </div>
 
