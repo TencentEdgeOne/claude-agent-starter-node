@@ -19,9 +19,9 @@ interface CreateChatStreamOptions {
 /** Skill catalog — describes skills available in this project. */
 const PROJECT_SKILLS = [
   {
-    name: 'web-search',
-    label: '网络搜索',
-    description: 'Use web/search or browser tools to gather current external information and summarize findings with sources.',
+    name: 'sandbox-algorithms',
+    label: '沙箱算法执行',
+    description: 'Run deterministic algorithm scripts through the EdgeOne sandbox code_interpreter and return verified execution results.',
   },
 ];
 
