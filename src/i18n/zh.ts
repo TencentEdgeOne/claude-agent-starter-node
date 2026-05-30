@@ -16,6 +16,7 @@ const zh = {
   "preset.1": "使用终端命令检查当前系统时间和操作系统版本。",
   "preset.2": "创建 /tmp/fib.py，写入计算斐波那契数列前 10 项的 Python 代码并执行，将结果打印出来。",
   "preset.4": "访问 https://edgeone.ai 并总结页面内容。",
+  "preset.screenshotEdgeOne": "截取 edgeone.ai 的网页图片。",
   "preset.skill.sandboxAlgorithms": "计算斐波那契数列前 20 个，并给出执行结果。",
 
   // Skill indicators
