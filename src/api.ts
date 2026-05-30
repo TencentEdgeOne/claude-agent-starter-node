@@ -5,6 +5,7 @@
  *   agents/chat/index.ts    → POST /chat          Main chat endpoint
  *   agents/stop/index.ts    → POST /stop          Abort the active agent run
  *   agents/history/index.ts → POST /history        Get conversation history
+ *   agents/clear-history/index.ts → POST /clear-history  Clear conversation history
  *
  * This file defines all API paths and request wrappers.
  */
@@ -15,6 +16,7 @@ export const API = {
   chat: '/chat',
   chatStop: '/stop',
   history: '/history',
+  clearHistory: '/clear-history',
 } as const;
 
 export interface RawSseEvent {
@@ -253,6 +255,25 @@ export async function stopAgent(conversationId?: string): Promise<boolean> {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ conversation_id: conversationId }),
+    });
+    return res.ok;
+  } catch {
+    return false;
+  }
+}
+
+/** Clear backend conversation history for the given conversation ID. */
+export async function clearConversationHistory(conversationId?: string): Promise<boolean> {
+  if (!conversationId) return false;
+
+  try {
+    const res = await fetch(API.clearHistory, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'makers-conversation-id': conversationId,
+      },
+      body: JSON.stringify({}),
     });
     return res.ok;
   } catch {
