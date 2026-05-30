@@ -8,14 +8,13 @@
  *   context.request.body    — object, request body
  *   context.request.signal  — AbortSignal, set when /stop is called
  *   context.conversation_id — conversation ID
- *   context.store           — store adapter (appendMessage / getMessages)
+ *   context.store           — store adapter (appendMessage / getMessages / claudeSessionStore)
  *   context.tools           — EdgeOne platform sandbox toolkit
  */
 
-import { createSdkMcpServer } from '@anthropic-ai/claude-agent-sdk';
+import { createSdkMcpServer, getSessionInfo } from '@anthropic-ai/claude-agent-sdk';
 import { resolveModelName, collectGatewayEnv } from '../_model';
 import { createLogger } from '../_logger';
-import { redactBase64Deep } from '../_redact';
 import { createChatStream } from './_stream';
 
 const logger = createLogger('chat');
@@ -47,38 +46,56 @@ const SYSTEM_PROMPT =
   '6. Do not add unrelated explanation.\n' +
   '7. Return the translation directly. Only add a "Notes" section when there are important terminology or localization decisions.';
 
-
-/**
- * Wrap a Claude session store to intercept writes and strip base64Image data.
- * This prevents large image data from polluting the Claude SDK transcript/context.
- */
-function wrapSessionStoreWithSanitizer(originalStore: any): any {
-  if (!originalStore) return null;
-
-  return {
-    ...originalStore,
-    write: originalStore.write
-      ? async (...args: any[]) => originalStore.write(...args.map(arg => redactBase64Deep(arg)))
-      : undefined,
-    append: originalStore.append
-      ? async (...args: any[]) => originalStore.append(...args.map(arg => redactBase64Deep(arg)))
-      : undefined,
-    set: originalStore.set
-      ? async (key: string, value: unknown) => originalStore.set(key, redactBase64Deep(value))
-      : undefined,
-    read: originalStore.read,
-    get: originalStore.get,
-    list: originalStore.list,
-  };
+function normalizeUuid(value: string): string | null {
+  const trimmed = value.trim().toLowerCase();
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(trimmed)
+    ? trimmed
+    : null;
 }
 
+async function resolveClaudeSessionBinding(
+  sessionStore: any,
+  conversationId: string,
+  cwd: string,
+): Promise<{ sessionId?: string; resume?: string }> {
+  const sessionId = normalizeUuid(conversationId);
+  if (!sessionId) {
+    logger.log(`[session] skip SDK session binding: invalid conversationId=${conversationId}`);
+    return {};
+  }
 
-function buildAgentOptions(opts?: { claudeSessionStore?: any; mcpServer?: any; mcpServerName?: string; allowedTools?: string[]; env?: Record<string, string | undefined> }) {
+  try {
+    const infoOptions = sessionStore?.load
+      ? { dir: cwd, sessionStore }
+      : { dir: cwd };
+    const info = await getSessionInfo(sessionId, infoOptions);
+    if (info) {
+      logger.log(`[session] resume Claude SDK sessionId=${sessionId}`);
+      return { resume: sessionId };
+    }
+    logger.log(`[session] create Claude SDK sessionId=${sessionId}`);
+  } catch (e) {
+    logger.error('[session] failed to inspect sessionStore for resume:', e);
+  }
+
+  return { sessionId };
+}
+
+function buildAgentOptions(opts?: {
+  claudeSessionStore?: any;
+  mcpServer?: any;
+  mcpServerName?: string;
+  allowedTools?: string[];
+  env?: Record<string, string | undefined>;
+  sessionId?: string;
+  resume?: string;
+}) {
   const ctxEnv = opts?.env ?? {};
+  const cwd = process.cwd();
   const options: Record<string, any> = {
     model: resolveModelName(ctxEnv),
     systemPrompt: SYSTEM_PROMPT,
-    cwd: process.cwd(),
+    cwd,
     tools: [],
     allowedTools: [...(opts?.allowedTools ?? [])],
     settingSources: ["project"],
@@ -92,6 +109,11 @@ function buildAgentOptions(opts?: { claudeSessionStore?: any; mcpServer?: any; m
   };
   if (opts?.claudeSessionStore) {
     options.sessionStore = opts.claudeSessionStore;
+  }
+  if (opts?.resume) {
+    options.resume = opts.resume;
+  } else if (opts?.sessionId) {
+    options.sessionId = opts.sessionId;
   }
   if (opts?.mcpServer && opts?.mcpServerName) {
     options.mcpServers = { [opts.mcpServerName]: opts.mcpServer };
@@ -118,9 +140,8 @@ export async function onRequest(context: any) {
 
   logger.log(`[request] cid=${conversationId}, message="${message.slice(0, 50)}..."`);
 
-  // Get Claude session store for transcript persistence — wrap with sanitizer
-  const rawSessionStore = store?.claude_session_store?.() ?? null;
-  const claudeSessionStore = wrapSessionStoreWithSanitizer(rawSessionStore);
+  // EdgeOne store returns a Claude SDK-compatible SessionStore for transcript persistence.
+  const claudeSessionStore = store?.claude_session_store?.() ?? null;
 
   // Save user message to store (with frontend-generated ID for history alignment)
   if (store && conversationId) {
@@ -143,7 +164,15 @@ export async function onRequest(context: any) {
   const { allowedTools } = edgeoneMcp;
   logger.log('[tools] registered EdgeOne MCP tools:', allowedTools);
 
-  const options = buildAgentOptions({ claudeSessionStore, mcpServer, mcpServerName: edgeoneMcp.name, allowedTools, env: context.env });
+  const sessionBinding = await resolveClaudeSessionBinding(claudeSessionStore, conversationId, process.cwd());
+  const options = buildAgentOptions({
+    claudeSessionStore,
+    mcpServer,
+    mcpServerName: edgeoneMcp.name,
+    allowedTools,
+    env: context.env,
+    ...sessionBinding,
+  });
   const stream = createChatStream({
     message,
     options,

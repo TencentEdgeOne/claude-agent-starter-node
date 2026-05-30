@@ -13,9 +13,12 @@
   display: flex;
   gap: 8px;
   flex-wrap: wrap;
+  min-width: 0;
 }
 .presetChip {
   padding: 5px 12px;
+  max-width: 100%;
+  min-width: 0;
   border-radius: 999px;
   border: 1px solid var(--bg-border);
   background: var(--bg-elevated);
@@ -23,8 +26,12 @@
   font-family: var(--font-mono);
   font-size: .68rem;
   letter-spacing: .02em;
+  line-height: 1.45;
   cursor: pointer;
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: left;
   transition:
     color var(--transition-fast),
     border-color var(--transition-fast),
