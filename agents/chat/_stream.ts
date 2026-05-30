@@ -19,9 +19,9 @@ interface CreateChatStreamOptions {
 /** Skill catalog — describes skills available in this project. */
 const PROJECT_SKILLS = [
   {
-    name: 'smart-translator',
-    label: '智能翻译',
-    description: 'Translate text between Chinese and English while preserving tone, formatting, terminology, and Markdown structure.',
+    name: 'web-search',
+    label: '网络搜索',
+    description: 'Use web/search or browser tools to gather current external information and summarize findings with sources.',
   },
 ];
 

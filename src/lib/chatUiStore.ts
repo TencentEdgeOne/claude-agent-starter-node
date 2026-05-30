@@ -35,11 +35,12 @@ function openDB(): Promise<IDBDatabase> {
  * Preserves storageKey/imageId/mimeType/size but removes url field from ImageAttachments.
  */
 function sanitizeForStorage(messages: Message[]): Message[] {
-  // Fast path: skip allocation when no messages have images
-  if (!messages.some(m => m.images && m.images.length > 0)) return messages;
+  // Fast path: skip allocation when no messages have images or transient activity.
+  if (!messages.some(m => (m.images && m.images.length > 0) || m.activity)) return messages;
 
   return messages.map(msg => {
-    if (!msg.images || msg.images.length === 0) return msg;
+    const { activity: _activity, ...messageWithoutActivity } = msg;
+    if (!msg.images || msg.images.length === 0) return messageWithoutActivity;
 
     const sanitizedImages = msg.images.map(img => {
       if (typeof img === 'string') {
@@ -52,7 +53,7 @@ function sanitizeForStorage(messages: Message[]): Message[] {
     }).filter(Boolean);
 
     return {
-      ...msg,
+      ...messageWithoutActivity,
       images: sanitizedImages as Message['images'],
     };
   });
