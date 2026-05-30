@@ -248,6 +248,10 @@ export function createChatStream({
           if (msg.type === 'assistant') {
             emitAssistantBlocks(msg, state, controller, encoder, logger, conversationId);
           } else if (msg.type === 'result') {
+            const sessionId = msg.session_id ?? msg.sessionId;
+            if (typeof sessionId === 'string') {
+              logger.log('[session] Claude SDK result session_id:', sessionId);
+            }
             break;
           }
         }
