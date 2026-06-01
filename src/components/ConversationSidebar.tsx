@@ -112,16 +112,17 @@ export default function ConversationSidebar({
       </div>
 
       <div className={styles.listShell}>
-        {loading && items.length === 0 ? (
-          <div className={styles.empty}>
-            <div className={styles.spinner} />
-            <p className={styles.emptyHint}>{t('sidebar.loading')}</p>
-          </div>
-        ) : items.length === 0 ? (
-          <div className={styles.empty}>
-            <p className={styles.emptyTitle}>{t('sidebar.emptyTitle')}</p>
-            <p className={styles.emptyHint}>{t('sidebar.emptyHint')}</p>
-          </div>
+        {items.length === 0 ? (
+          loading ? (
+            // No loading overlay — keep the panel quiet while the first page
+            // is fetched. The list will populate the moment data arrives.
+            null
+          ) : (
+            <div className={styles.empty}>
+              <p className={styles.emptyTitle}>{t('sidebar.emptyTitle')}</p>
+              <p className={styles.emptyHint}>{t('sidebar.emptyHint')}</p>
+            </div>
+          )
         ) : (
           <ul className={styles.list}>
             {items.map(c => {

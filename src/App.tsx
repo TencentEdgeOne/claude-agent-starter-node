@@ -392,6 +392,49 @@ function AppInner() {
     setMessages(prev => [...prev, userMsg, botMsg]);
     setLoading(true);
 
+    /**
+     * Optimistic sidebar update — fires as soon as the backend emits its first
+     * SSE event (matches ChatGPT's "new chat appears the moment streaming
+     * starts" UX). For brand-new conversations we prepend a synthesized summary;
+     * for existing ones we just bump them to the top.
+     *
+     * Server reconciliation still happens in onDone() via refreshConversations,
+     * which can correct the title if the runtime later overrides it.
+     */
+    let sidebarPrimed = false;
+    const cleanedText = text.replace(/\s+/g, ' ').trim();
+    const optimisticTitle =
+      cleanedText.length === 0 ? 'New chat'
+        : cleanedText.length <= 8 ? cleanedText
+          : `${cleanedText.slice(0, 8)}...`;
+
+    const primeSidebar = () => {
+      if (sidebarPrimed) return;
+      sidebarPrimed = true;
+
+      const convId = conversationIdRef.current;
+      const now = Date.now();
+
+      setConversations(prev => {
+        const idx = prev.findIndex(c => c.id === convId);
+        if (idx === -1) {
+          // Brand-new conversation — prepend.
+          const summary: ConversationSummary = {
+            id: convId,
+            title: optimisticTitle,
+            lastMessageAt: now,
+            userId: eoUuidRef.current,
+          };
+          return [summary, ...prev];
+        }
+        // Existing conversation — bump to top and refresh timestamp.
+        const next = [...prev];
+        const [moved] = next.splice(idx, 1);
+        next.unshift({ ...moved, lastMessageAt: now });
+        return next;
+      });
+    };
+
     const ctrl = sendMessageStream(text, {
       onTextDelta(delta) {
         finishBotActivity();
@@ -423,6 +466,11 @@ function AppInner() {
       },
 
       onRawEvent(event) {
+        // Every backend SSE frame flows through here, so this is the cheapest
+        // hook for "first byte from backend" — covers text_delta, tool_called,
+        // skills_available, debug_msg, image, etc.
+        primeSidebar();
+
         if (!isWebSearchToolEvent(event)) {
           finishBotActivity();
         }
@@ -438,8 +486,8 @@ function AppInner() {
       onDone() {
         finishBotActivity();
         finishStream();
-        // Refresh conversation list so the just-active chat moves to the top
-        // and brand-new conversations appear in the sidebar.
+        // Reconcile with backend so the title (and any other fields the runtime
+        // synthesized) reflect the server's authoritative state.
         void refreshConversations('replace');
       },
 
