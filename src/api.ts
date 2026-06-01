@@ -6,17 +6,21 @@
  *   agents/stop/index.ts    → POST /stop          Abort the active agent run
  *   cloud-functions/history/index.ts → POST /history        Get conversation history
  *   cloud-functions/clear-history/index.ts → POST /clear-history  Clear conversation history
+ *   agents/conversations/index.ts → POST /conversations List conversations for a user
+ *   agents/delete-conversation/index.ts → POST /delete-conversation  Permanently delete a conversation
  *
  * This file defines all API paths and request wrappers.
  */
 
-import type { Message, ImageSsePayload } from './types';
+import type { Message, ImageSsePayload, ListConversationsParams, ListConversationsResponse } from './types';
 
 export const API = {
   chat: '/chat',
   chatStop: '/stop',
   history: '/history',
   clearHistory: '/clear-history',
+  conversations: '/conversations',
+  deleteConversation: '/delete-conversation',
 } as const;
 
 export interface RawSseEvent {
@@ -49,7 +53,7 @@ export interface StreamCallbacks {
 }
 
 /** Get conversation history for restoring the chat window after page refresh. */
-export async function fetchConversationHistory(conversationId: string): Promise<Message[]> {
+export async function fetchConversationHistory(conversationId: string, userId?: string): Promise<Message[]> {
   const startTime = performance.now();
   console.log(`[history] start: ${new Date().toISOString()}`);
 
@@ -60,7 +64,7 @@ export async function fetchConversationHistory(conversationId: string): Promise<
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ conversation_id: conversationId }),
+        body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
       });
 
       // 409 = Active request on same conversation (React StrictMode double-render), retry shortly
@@ -100,6 +104,7 @@ export function sendMessageStream(
   callbacks: StreamCallbacks,
   conversationId?: string,
   messageIds?: { userMsgId: string; botMsgId: string },
+  userId?: string,
 ): AbortController {
   const ctrl = new AbortController();
 
@@ -119,6 +124,7 @@ export function sendMessageStream(
           message,
           userMsgId: messageIds?.userMsgId,
           botMsgId: messageIds?.botMsgId,
+          userId,
         }),
         signal: ctrl.signal,
       });
@@ -262,17 +268,82 @@ export async function stopAgent(conversationId?: string): Promise<boolean> {
 }
 
 /** Clear backend conversation history for the given conversation ID. */
-export async function clearConversationHistory(conversationId?: string): Promise<boolean> {
+export async function clearConversationHistory(conversationId?: string, userId?: string): Promise<boolean> {
   if (!conversationId) return false;
 
   try {
     const res = await fetch(API.clearHistory, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ conversation_id: conversationId }),
+      body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
     });
     return res.ok;
   } catch {
+    return false;
+  }
+}
+
+/**
+ * List conversations for the given user (eo-uuid).
+ * Returns at most `limit` (default 20) conversations ordered by lastMessageAt desc by default.
+ * Pass `after` from a previous response's `nextCursor` to paginate.
+ */
+export async function listConversations(params: ListConversationsParams): Promise<ListConversationsResponse> {
+  const startTime = performance.now();
+  console.log(`[conversations] start: ${new Date().toISOString()}`);
+
+  const empty: ListConversationsResponse = { conversations: [] };
+  if (!params.userId) return empty;
+
+  try {
+    const res = await fetch(API.conversations, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        user_id: params.userId,
+        limit: params.limit ?? 20,
+        order: params.order ?? 'desc',
+        after: params.after,
+        before: params.before,
+      }),
+    });
+
+    if (!res.ok) {
+      console.warn(`[conversations] HTTP ${res.status}`);
+      console.log(`[conversations] end: ${new Date().toISOString()}, total: ${(performance.now() - startTime).toFixed(2)}ms`);
+      return empty;
+    }
+
+    const data = await res.json().catch(() => null) as ListConversationsResponse | null;
+    console.log(`[conversations] end: ${new Date().toISOString()}, total: ${(performance.now() - startTime).toFixed(2)}ms, count=${data?.conversations?.length ?? 0}`);
+    if (!data || !Array.isArray(data.conversations)) return empty;
+    return {
+      conversations: data.conversations,
+      nextCursor: data.nextCursor,
+      previousCursor: data.previousCursor,
+    };
+  } catch (e) {
+    console.warn('[conversations] request failed:', e);
+    return empty;
+  }
+}
+
+/**
+ * Permanently delete a conversation (messages + metadata + index).
+ * Irreversible — caller must already have confirmed with the user.
+ */
+export async function deleteConversation(conversationId: string, userId?: string): Promise<boolean> {
+  if (!conversationId) return false;
+
+  try {
+    const res = await fetch(API.deleteConversation, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation_id: conversationId, user_id: userId }),
+    });
+    return res.ok;
+  } catch (e) {
+    console.warn('[delete-conversation] request failed:', e);
     return false;
   }
 }

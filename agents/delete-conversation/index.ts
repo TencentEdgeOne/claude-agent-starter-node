@@ -1,17 +1,21 @@
 /**
- * Clear history handler — EdgeOne Makers
- * ======================================
+ * Delete-conversation handler — EdgeOne Makers
+ * ============================================
  *
- * File path agents/clear-history/index.ts maps to **POST /clear-history**.
+ * File path agents/delete-conversation/index.ts maps to **POST /delete-conversation**.
  *
- * Clears all backend messages for the current conversation via
- * context.store.clearMessages({ conversationId }).
+ * Permanently deletes an entire conversation via
+ * `context.store.deleteConversation({ conversationId })` (or the snake_case
+ * `delete_conversation` alias). Removes the message index, conversation
+ * metadata and the global conversation index — irreversible.
+ *
+ * Requires `user_id` (or `userId`) so we don't accidentally delete a
+ * conversation that doesn't belong to the requesting browser.
  */
 
 import { createLogger } from '../_logger';
-import { redactBase64Deep } from '../_redact';
 
-const logger = createLogger('clear-history');
+const logger = createLogger('delete-conversation');
 
 const JSON_HEADERS = { 'Content-Type': 'application/json; charset=UTF-8' } as const;
 
@@ -54,7 +58,7 @@ async function readRequestBody(context: any): Promise<Record<string, unknown>> {
 
 function getConversationId(body: Record<string, unknown>): string {
   const value = body.conversation_id ?? body.conversationId;
-  return typeof value === 'string' ? value : '';
+  return typeof value === 'string' ? value.trim() : '';
 }
 
 function getUserId(body: Record<string, unknown>): string {
@@ -64,7 +68,7 @@ function getUserId(body: Record<string, unknown>): string {
 
 export async function onRequest(context: any) {
   const startTime = Date.now();
-  logger.log(`[clear-history] start: ${new Date(startTime).toISOString()}`);
+  logger.log(`[delete-conversation] start: ${new Date(startTime).toISOString()}`);
 
   const body = await readRequestBody(context);
   const conversationId = getConversationId(body);
@@ -75,42 +79,40 @@ export async function onRequest(context: any) {
 
   if (!conversationId) {
     logger.error('Missing conversationId');
-    logger.log(`[clear-history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
+    logger.log(`[delete-conversation] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ status: 'error', message: 'conversation_id is required' }, 400);
   }
 
-  if (!store || typeof store.clearMessages !== 'function') {
-    logger.error('context.store.clearMessages is unavailable');
-    logger.log(`[clear-history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
-    return jsonResponse({ status: 'error', message: 'store.clearMessages is unavailable' }, 501);
+  const deleter =
+    typeof store?.deleteConversation === 'function'
+      ? store.deleteConversation.bind(store)
+      : typeof store?.delete_conversation === 'function'
+        ? store.delete_conversation.bind(store)
+        : null;
+
+  if (!deleter) {
+    logger.error('context.store.deleteConversation is unavailable');
+    logger.log(`[delete-conversation] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
+    return jsonResponse(
+      { status: 'error', message: 'store.deleteConversation is unavailable' },
+      501,
+    );
   }
 
   try {
-    const clearArgs: Record<string, unknown> = { conversationId };
-    if (userId) clearArgs.userId = userId;
-    await store.clearMessages(clearArgs);
+    const args: Record<string, unknown> = { conversationId };
+    if (userId) args.userId = userId;
+    await deleter(args);
 
-    if (typeof store.getMessages === 'function') {
-      const getArgs: Record<string, unknown> = {
-        conversationId,
-        limit: 100,
-        order: 'asc',
-      };
-      if (userId) getArgs.userId = userId;
-      const historyAfterClear = await store.getMessages(getArgs);
-      logger.log('[clear-history] history after clear:', {
-        conversationId,
-        count: Array.isArray(historyAfterClear) ? historyAfterClear.length : 0,
-        messages: redactBase64Deep(historyAfterClear),
-      });
-    }
-
-    logger.log(`[clear-history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
+    logger.log(`[delete-conversation] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ status: 'ok', conversation_id: conversationId });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
-    logger.error('failed to clear messages:', e);
-    logger.log(`[clear-history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
-    return jsonResponse({ status: 'error', conversation_id: conversationId, message }, 500);
+    logger.error('failed to delete conversation:', e);
+    logger.log(`[delete-conversation] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
+    return jsonResponse(
+      { status: 'error', conversation_id: conversationId, message },
+      500,
+    );
   }
 }
