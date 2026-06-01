@@ -114,6 +114,8 @@ export async function onRequest(context: any) {
   const message = typeof body.message === 'string' ? body.message.trim() : '';
   const userMsgId = typeof body.userMsgId === 'string' ? body.userMsgId : undefined;
   const botMsgId = typeof body.botMsgId === 'string' ? body.botMsgId : undefined;
+  const rawUserId = typeof body.userId === 'string' ? body.userId : (typeof body.user_id === 'string' ? body.user_id : '');
+  const userId = rawUserId.trim() || undefined;
 
   if (!message) {
     return new Response(
@@ -126,15 +128,23 @@ export async function onRequest(context: any) {
   const conversationId: string = context.conversation_id ?? '';
   const store = context.store ?? null;
 
-  logger.log(`[request] cid=${conversationId}, message="${message.slice(0, 50)}..."`);
+  logger.log(`[request] cid=${conversationId}, uid=${userId ?? '-'}, message="${message.slice(0, 50)}..."`);
 
   // EdgeOne store returns a Claude SDK-compatible SessionStore for transcript persistence.
   const claudeSessionStore = store?.claude_session_store?.() ?? null;
 
   // Save user message to store (with frontend-generated ID for history alignment)
   if (store && conversationId) {
-    try { await store.appendMessage({ conversationId, role: 'user', content: message, messageId: userMsgId }); }
-    catch (e) { logger.error('[store] failed to save user message:', e); }
+    try {
+      const appendArgs: Record<string, unknown> = {
+        conversationId,
+        role: 'user',
+        content: message,
+        messageId: userMsgId,
+      };
+      if (userId) appendArgs.userId = userId;
+      await store.appendMessage(appendArgs);
+    } catch (e) { logger.error('[store] failed to save user message:', e); }
   }
 
   if (typeof context.tools?.toClaudeMcpServer !== 'function') {
@@ -169,6 +179,7 @@ export async function onRequest(context: any) {
     conversationId,
     store,
     botMsgId,
+    userId,
   });
 
   return new Response(stream, {

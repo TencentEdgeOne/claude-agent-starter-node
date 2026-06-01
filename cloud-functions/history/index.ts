@@ -68,6 +68,11 @@ function getConversationId(body: Record<string, unknown>): string {
   return typeof value === 'string' ? value : '';
 }
 
+function getUserId(body: Record<string, unknown>): string {
+  const value = body.user_id ?? body.userId;
+  return typeof value === 'string' ? value.trim() : '';
+}
+
 function contentToText(content: unknown): string {
   if (typeof content === 'string') return redactBase64InText(content);
 
@@ -101,9 +106,10 @@ export async function onRequest(context: any) {
 
   const body = await readRequestBody(context);
   const conversationId = getConversationId(body);
+  const userId = getUserId(body);
   const store = context.store ?? null;
 
-  logger.log('conversationId:', conversationId);
+  logger.log('conversationId:', conversationId, 'userId:', userId || '-');
 
   if (!store || !conversationId) {
     logger.log(`[history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
@@ -111,11 +117,13 @@ export async function onRequest(context: any) {
   }
 
   try {
-    const history = await store.getMessages({
+    const getArgs: Record<string, unknown> = {
       conversationId,
       limit: 100,
       order: 'asc',
-    });
+    };
+    if (userId) getArgs.userId = userId;
+    const history = await store.getMessages(getArgs);
 
     const messages: FrontendMessage[] = [];
     for (const item of history) {

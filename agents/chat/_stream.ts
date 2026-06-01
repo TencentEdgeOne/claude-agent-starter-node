@@ -14,6 +14,7 @@ interface CreateChatStreamOptions {
   conversationId: string;
   store: any;
   botMsgId?: string;
+  userId?: string;
 }
 
 /** Skill catalog — describes skills available in this project. */
@@ -193,6 +194,7 @@ export function createChatStream({
   conversationId,
   store,
   botMsgId,
+  userId,
 }: CreateChatStreamOptions): ReadableStream<Uint8Array> {
   const encoder = new TextEncoder();
   let stopped = false;
@@ -270,11 +272,23 @@ export function createChatStream({
         // so that /history returns this message and frontend can merge images back by ID.
         if (store && conversationId && botMsgId) {
           const content = state.fullAssistantText.trim() || '[image]';
-          try { await store.appendMessage({ conversationId, role: 'assistant', content, messageId: botMsgId }); }
+          try {
+            const args: Record<string, unknown> = {
+              conversationId, role: 'assistant', content, messageId: botMsgId,
+            };
+            if (userId) args.userId = userId;
+            await store.appendMessage(args);
+          }
           catch (e) { logger.error('[store] failed to save assistant response:', e); }
         } else if (store && conversationId && state.fullAssistantText.trim()) {
           // Legacy fallback: no botMsgId but has text content
-          try { await store.appendMessage({ conversationId, role: 'assistant', content: state.fullAssistantText }); }
+          try {
+            const args: Record<string, unknown> = {
+              conversationId, role: 'assistant', content: state.fullAssistantText,
+            };
+            if (userId) args.userId = userId;
+            await store.appendMessage(args);
+          }
           catch (e) { logger.error('[store] failed to save assistant response:', e); }
         }
 
