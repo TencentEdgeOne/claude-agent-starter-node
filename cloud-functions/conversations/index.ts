@@ -1,11 +1,11 @@
 /**
- * Conversations handler — EdgeOne Makers
- * ======================================
+ * Conversations handler — EdgeOne Pages Node Function
+ * ===================================================
  *
- * File path agents/conversations/index.ts maps to **POST /conversations**.
+ * File path cloud-functions/conversations/index.ts maps to **POST /conversations**.
  *
  * Lists conversations belonging to the requesting user (`eo-uuid`).
- * Calls context.store.listConversations({ userId, limit, order, after, before })
+ * Calls `context.agent.store.listConversations({ userId, limit, order, after, before })`
  * (or the snake_case `list_conversations` alias when the runtime exposes it),
  * then normalizes the runtime result into a stable shape for the frontend:
  *
@@ -18,6 +18,12 @@
  *
  * NOTE: The frontend MUST send `user_id` (or `userId`). Without a user namespace
  * we refuse to leak conversations across users and return 400.
+ *
+ * Following the official EdgeOne Pages Node Functions docs:
+ *   - export `onRequestPost` for POST handlers
+ *   - read JSON body via `await context.request.json()`
+ *   - return a `Response` object
+ *   https://pages.edgeone.ai/document/node-functions
  */
 
 import { createLogger } from '../_logger';
@@ -46,37 +52,15 @@ function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
 }
 
-async function readRequestBody(context: any): Promise<Record<string, unknown>> {
-  const body = context.request?.body;
-  if (body instanceof Uint8Array) {
-    try {
-      return JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
+async function readJsonBody(context: any): Promise<Record<string, unknown>> {
+  try {
+    const data = await context.request.json();
+    return data && typeof data === 'object' && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
   }
-
-  if (body && typeof body === 'object' && !Array.isArray(body)) {
-    return body as Record<string, unknown>;
-  }
-
-  if (typeof body === 'string') {
-    try {
-      return JSON.parse(body) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  }
-
-  if (typeof context.request?.json === 'function') {
-    try {
-      return await context.request.json();
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
 }
 
 function pickString(body: Record<string, unknown>, ...keys: string[]): string {
@@ -242,18 +226,18 @@ function pickCursor(rawResult: any, ...keys: string[]): string | undefined {
   return undefined;
 }
 
-export async function onRequest(context: any) {
+export async function onRequestPost(context: any): Promise<Response> {
   const startTime = Date.now();
   logger.log(`[conversations] start: ${new Date(startTime).toISOString()}`);
 
-  const body = await readRequestBody(context);
+  const body = await readJsonBody(context);
   const userId = pickString(body, 'user_id', 'userId');
   const limit = clampLimit(body.limit);
   const order = pickOrder(body.order);
   const after = pickString(body, 'after', 'cursor');
   const before = pickString(body, 'before');
 
-  const store = context.store ?? null;
+  const store = context.agent?.store ?? null;
 
   if (!userId) {
     logger.error('Missing userId');
@@ -269,7 +253,7 @@ export async function onRequest(context: any) {
         : null;
 
   if (!lister) {
-    logger.error('context.store.listConversations is unavailable');
+    logger.error('context.agent.store.listConversations is unavailable');
     logger.log(`[conversations] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({
       status: 'error',

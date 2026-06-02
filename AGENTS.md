@@ -61,7 +61,7 @@ Files prefixed with `_` are private modules (not exposed as routes).
 
 - **Conversation ID**: Passed via `makers-conversation-id` HTTP header for `/chat` and `/history`. For `/stop`, the target conversation ID is in the request body (never in headers — this is critical to avoid signal collision).
 - **SSE Protocol**: Events are `text_delta`, `tool_called`, `ping`, `error`, `done`. Each frame: `event: <type>\ndata: <json>\n\n`.
-- **Session persistence**: `context.store.claude_session_store()` provides transcript persistence for cross-request context. `store.appendMessage()` / `store.getMessages()` handle user-facing history.
+- **Session persistence**: `context.agent.store.claude_session_store()` provides transcript persistence for cross-request context. `store.appendMessage()` / `store.getMessages()` handle user-facing history.
 - **Cancellation**: Dual mechanism — frontend `AbortController.abort()` stops SSE reading; backend `context.utils.abortActiveRun()` interrupts the LLM.
 - **MCP Tools**: EdgeOne platform tools (`commands`, `files`, `code_interpreter`, `browser`) are exposed via `context.tools.toClaudeMcpServer()` and registered with `createSdkMcpServer()`.
 

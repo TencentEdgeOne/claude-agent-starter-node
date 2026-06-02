@@ -6,8 +6,8 @@
  *   agents/stop/index.ts    → POST /stop          Abort the active agent run
  *   cloud-functions/history/index.ts → POST /history        Get conversation history
  *   cloud-functions/clear-history/index.ts → POST /clear-history  Clear conversation history
- *   agents/conversations/index.ts → POST /conversations List conversations for a user
- *   agents/delete-conversation/index.ts → POST /delete-conversation  Permanently delete a conversation
+ *   cloud-functions/conversations/index.ts → POST /conversations List conversations for a user
+ *   cloud-functions/delete-conversation/index.ts → POST /delete-conversation  Permanently delete a conversation
  *
  * This file defines all API paths and request wrappers.
  */

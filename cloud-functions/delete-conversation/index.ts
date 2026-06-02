@@ -1,16 +1,23 @@
 /**
- * Delete-conversation handler — EdgeOne Makers
- * ============================================
+ * Delete-conversation handler — EdgeOne Pages Node Function
+ * =========================================================
  *
- * File path agents/delete-conversation/index.ts maps to **POST /delete-conversation**.
+ * File path cloud-functions/delete-conversation/index.ts maps to
+ * **POST /delete-conversation**.
  *
  * Permanently deletes an entire conversation via
- * `context.store.deleteConversation({ conversationId })` (or the snake_case
- * `delete_conversation` alias). Removes the message index, conversation
- * metadata and the global conversation index — irreversible.
+ * `context.agent.store.deleteConversation({ conversationId })` (or the
+ * snake_case `delete_conversation` alias). Removes the message index,
+ * conversation metadata and the global conversation index — irreversible.
  *
  * Requires `user_id` (or `userId`) so we don't accidentally delete a
  * conversation that doesn't belong to the requesting browser.
+ *
+ * Following the official EdgeOne Pages Node Functions docs:
+ *   - export `onRequestPost` for POST handlers
+ *   - read JSON body via `await context.request.json()`
+ *   - return a `Response` object
+ *   https://pages.edgeone.ai/document/node-functions
  */
 
 import { createLogger } from '../_logger';
@@ -23,37 +30,15 @@ function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
 }
 
-async function readRequestBody(context: any): Promise<Record<string, unknown>> {
-  const body = context.request?.body;
-  if (body instanceof Uint8Array) {
-    try {
-      return JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
+async function readJsonBody(context: any): Promise<Record<string, unknown>> {
+  try {
+    const data = await context.request.json();
+    return data && typeof data === 'object' && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
   }
-
-  if (body && typeof body === 'object' && !Array.isArray(body)) {
-    return body as Record<string, unknown>;
-  }
-
-  if (typeof body === 'string') {
-    try {
-      return JSON.parse(body) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  }
-
-  if (typeof context.request?.json === 'function') {
-    try {
-      return await context.request.json();
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
 }
 
 function getConversationId(body: Record<string, unknown>): string {
@@ -66,14 +51,14 @@ function getUserId(body: Record<string, unknown>): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-export async function onRequest(context: any) {
+export async function onRequestPost(context: any): Promise<Response> {
   const startTime = Date.now();
   logger.log(`[delete-conversation] start: ${new Date(startTime).toISOString()}`);
 
-  const body = await readRequestBody(context);
+  const body = await readJsonBody(context);
   const conversationId = getConversationId(body);
   const userId = getUserId(body);
-  const store = context.store ?? null;
+  const store = context.agent?.store ?? null;
 
   logger.log('conversationId:', conversationId, 'userId:', userId || '-');
 
@@ -91,7 +76,7 @@ export async function onRequest(context: any) {
         : null;
 
   if (!deleter) {
-    logger.error('context.store.deleteConversation is unavailable');
+    logger.error('context.agent.store.deleteConversation is unavailable');
     logger.log(`[delete-conversation] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse(
       { status: 'error', message: 'store.deleteConversation is unavailable' },

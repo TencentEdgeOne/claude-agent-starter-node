@@ -5,7 +5,7 @@ A full-stack EdgeOne Makers Agent template powered by Anthropic Claude Agent SDK
 ## Features
 
 - **SSE Streaming Chat** — Token-by-token `text_delta` push; `tool_called` events when tools are invoked
-- **Session Persistence** — Saves Claude transcript via `context.store.claude_session_store()` for cross-request context restore
+- **Session Persistence** — Saves Claude transcript via `context.agent.store.claude_session_store()` for cross-request context restore
 - **EdgeOne Sandbox Tools** — commands, files, code_interpreter, browser — bridged to Claude Agent SDK via MCP Server
 - **Tool Indicators** — 4 animated tool lamps light up in real time when Claude calls a tool
 - **Observability** — EdgeOne runtime automatically injects tracing
@@ -89,7 +89,7 @@ event: done           data: {"stopped":false}
 
 1. **`context.tools.toClaudeMcpServer()`** — Converts EdgeOne sandbox tools into a Claude MCP Server
 2. **`createSdkMcpServer()`** — Registers the MCP server with the Claude Agent SDK
-3. **`context.store.claude_session_store()`** — Provides session persistence for multi-turn memory
+3. **`context.agent.store.claude_session_store()`** — Provides session persistence for multi-turn memory
 4. **`query({ prompt, options })`** — Launches the Claude Agent with streaming output
 5. **`store.appendMessage()`** — Saves user/assistant messages for `/history` restore
 
