@@ -1,15 +1,22 @@
 /**
- * History handler — EdgeOne Makers
- * =========================================
+ * History handler — EdgeOne Pages Node Function
+ * ==============================================
  *
- * File path cloud-functions/history/index.ts maps to **POST /history**
+ * File path cloud-functions/history/index.ts maps to **POST /history**.
  *
- * Reads conversation history from ctx.store.getMessages() and returns
- * it to the frontend for restoring the chat window after a page refresh.
+ * Reads conversation history from `context.agent.store.getMessages()` and
+ * returns it to the frontend for restoring the chat window after a page
+ * refresh.
  *
- * Note: base64Image content is redacted from history responses to avoid
+ * Note: base64 image content is redacted from history responses to avoid
  * sending large payloads to the frontend. Images are restored from
  * client-side IndexedDB instead.
+ *
+ * Following the official EdgeOne Pages Node Functions docs:
+ *   - export `onRequestPost` for POST handlers
+ *   - read JSON body via `await context.request.json()`
+ *   - return a `Response` object
+ *   https://pages.edgeone.ai/document/node-functions
  */
 
 import { createLogger } from '../_logger';
@@ -30,37 +37,15 @@ function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
 }
 
-async function readRequestBody(context: any): Promise<Record<string, unknown>> {
-  const body = context.request?.body;
-  if (body instanceof Uint8Array) {
-    try {
-      return JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
+async function readJsonBody(context: any): Promise<Record<string, unknown>> {
+  try {
+    const data = await context.request.json();
+    return data && typeof data === 'object' && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
   }
-
-  if (body && typeof body === 'object' && !Array.isArray(body)) {
-    return body as Record<string, unknown>;
-  }
-
-  if (typeof body === 'string') {
-    try {
-      return JSON.parse(body) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  }
-
-  if (typeof context.request?.json === 'function') {
-    try {
-      return await context.request.json();
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
 }
 
 function getConversationId(body: Record<string, unknown>): string {
@@ -100,14 +85,14 @@ function contentToText(content: unknown): string {
   return String(content);
 }
 
-export async function onRequest(context: any) {
+export async function onRequestPost(context: any): Promise<Response> {
   const startTime = Date.now();
   logger.log(`[history] start: ${new Date(startTime).toISOString()}`);
 
-  const body = await readRequestBody(context);
+  const body = await readJsonBody(context);
   const conversationId = getConversationId(body);
   const userId = getUserId(body);
-  const store = context.store ?? null;
+  const store = context.agent?.store ?? null;
 
   logger.log('conversationId:', conversationId, 'userId:', userId || '-');
 

@@ -5,7 +5,7 @@
 ## 功能
 
 - **SSE 流式聊天** — 逐 token 推送 `text_delta`，命中工具时推送 `tool_called`
-- **会话持久化** — 通过 `context.store.claude_session_store()` 保存 Claude transcript，支持跨请求上下文恢复
+- **会话持久化** — 通过 `context.agent.store.claude_session_store()` 保存 Claude transcript，支持跨请求上下文恢复
 - **EdgeOne 沙箱工具** — commands、files、code_interpreter、browser，通过 MCP Server 桥接至 Claude Agent SDK
 - **工具灯状态** — 4 个动画工具灯，Claude 调用工具时实时点亮
 - **可观测性** — EdgeOne 运行时自动注入追踪
@@ -89,7 +89,7 @@ event: done           data: {"stopped":false}
 
 1. **`context.tools.toClaudeMcpServer()`** — 将 EdgeOne 沙箱工具一键转换为 Claude MCP Server
 2. **`createSdkMcpServer()`** — 向 Claude Agent SDK 注册 MCP Server
-3. **`context.store.claude_session_store()`** — 提供 session 持久化，用于多轮对话记忆
+3. **`context.agent.store.claude_session_store()`** — 提供 session 持久化，用于多轮对话记忆
 4. **`query({ prompt, options })`** — 启动 Claude Agent 并流式输出
 5. **`store.appendMessage()`** — 保存用户/助手消息，供 `/history` 恢复
 

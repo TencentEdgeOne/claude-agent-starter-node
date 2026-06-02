@@ -1,11 +1,17 @@
 /**
- * Clear history handler — EdgeOne Makers
- * ======================================
+ * Clear-history handler — EdgeOne Pages Node Function
+ * ===================================================
  *
- * File path agents/clear-history/index.ts maps to **POST /clear-history**.
+ * File path cloud-functions/clear-history/index.ts maps to **POST /clear-history**.
  *
  * Clears all backend messages for the current conversation via
- * context.store.clearMessages({ conversationId }).
+ * `context.agent.store.clearMessages({ conversationId })`.
+ *
+ * Following the official EdgeOne Pages Node Functions docs:
+ *   - export `onRequestPost` for POST handlers
+ *   - read JSON body via `await context.request.json()`
+ *   - return a `Response` object
+ *   https://pages.edgeone.ai/document/node-functions
  */
 
 import { createLogger } from '../_logger';
@@ -19,37 +25,15 @@ function jsonResponse(data: unknown, status = 200): Response {
   return new Response(JSON.stringify(data), { status, headers: JSON_HEADERS });
 }
 
-async function readRequestBody(context: any): Promise<Record<string, unknown>> {
-  const body = context.request?.body;
-  if (body instanceof Uint8Array) {
-    try {
-      return JSON.parse(new TextDecoder().decode(body)) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
+async function readJsonBody(context: any): Promise<Record<string, unknown>> {
+  try {
+    const data = await context.request.json();
+    return data && typeof data === 'object' && !Array.isArray(data)
+      ? (data as Record<string, unknown>)
+      : {};
+  } catch {
+    return {};
   }
-
-  if (body && typeof body === 'object' && !Array.isArray(body)) {
-    return body as Record<string, unknown>;
-  }
-
-  if (typeof body === 'string') {
-    try {
-      return JSON.parse(body) as Record<string, unknown>;
-    } catch {
-      return {};
-    }
-  }
-
-  if (typeof context.request?.json === 'function') {
-    try {
-      return await context.request.json();
-    } catch {
-      return {};
-    }
-  }
-
-  return {};
 }
 
 function getConversationId(body: Record<string, unknown>): string {
@@ -62,14 +46,14 @@ function getUserId(body: Record<string, unknown>): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
-export async function onRequest(context: any) {
+export async function onRequestPost(context: any): Promise<Response> {
   const startTime = Date.now();
   logger.log(`[clear-history] start: ${new Date(startTime).toISOString()}`);
 
-  const body = await readRequestBody(context);
+  const body = await readJsonBody(context);
   const conversationId = getConversationId(body);
   const userId = getUserId(body);
-  const store = context.store ?? null;
+  const store = context.agent?.store ?? null;
 
   logger.log('conversationId:', conversationId, 'userId:', userId || '-');
 
@@ -80,7 +64,7 @@ export async function onRequest(context: any) {
   }
 
   if (!store || typeof store.clearMessages !== 'function') {
-    logger.error('context.store.clearMessages is unavailable');
+    logger.error('context.agent.store.clearMessages is unavailable');
     logger.log(`[clear-history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ status: 'error', message: 'store.clearMessages is unavailable' }, 501);
   }
