@@ -264,7 +264,12 @@ export function createChatStream({
           logger.log('[stream] aborted by user');
         } else {
           logger.error('[stream] error:', error.message);
-          enqueueSse(controller, encoder, 'error', { message: String(error.message ?? e) });
+          enqueueSse(controller, encoder, 'error', {
+            message: String(error.message ?? e),
+            name: error.name || 'Error',
+            stack: error.stack,
+            cause: (error as { cause?: unknown }).cause,
+          });
         }
       } finally {
         // Save assistant response to store (with frontend-generated ID for history alignment).
