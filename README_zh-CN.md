@@ -1,6 +1,10 @@
 # Claude Agent Starter
 
-基于 Anthropic Claude Agent SDK 的 EdgeOne Makers Agent 全栈项目模板。
+基于 Anthropic Agent SDK 运行在 EdgeOne Makers 上的全栈项目模板。
+
+## 部署
+
+[![使用 EdgeOne Pages 部署](https://cdnstatic.tencentcs.com/edgeone/pages/deploy.svg)](https://console.cloud.tencent.com/edgeone/makers/new?template=claude-agent-starter-node&from=within&fromAgent=1&agentLang=typescript)
 
 ## 功能
 
