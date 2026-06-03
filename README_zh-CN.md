@@ -20,14 +20,20 @@
 claude-agent-starter/
 ├── src/                    # React + Vite + TypeScript 前端
 │   ├── App.tsx             # 主应用（conversation_id 管理）
-│   ├── api.ts              # /chat, /stop, /history 请求封装
+│   ├── api.ts              # /chat、/stop、/history、/conversations 等请求封装
 │   └── components/         # ChatWindow, ChatInput, CodeViewer, ToolIndicators 等
-├── agents/                 # Node/TS EdgeOne Makers（后端）
+├── agents/                 # 有状态的 EdgeOne Makers Agent Functions
 │   ├── chat/index.ts       # POST /chat — SSE 流式聊天
-│   ├── stop/index.ts       # POST /stop — 中断 agent
-│   ├── history/index.ts    # POST /history — 对话历史
+│   ├── stop/index.ts       # POST /stop — 中断正在执行的 agent
 │   ├── _model.ts           # 模型与环境变量配置
 │   └── _logger.ts          # 日志工具
+├── cloud-functions/        # 无状态的 EdgeOne Pages Node Functions（读写会话存储）
+│   ├── history/index.ts            # POST /history — 拉取对话消息
+│   ├── conversations/index.ts      # POST /conversations — 列出某用户的会话
+│   ├── clear-history/index.ts      # POST /clear-history — 清空某会话的消息
+│   ├── delete-conversation/index.ts# POST /delete-conversation — 彻底删除某会话
+│   ├── _logger.ts          # 日志工具
+│   └── _redact.ts          # 日志敏感字段脱敏
 ├── package.json            # 项目依赖（含 Claude Agent SDK）
 ├── edgeone.json            # EdgeOne 部署配置
 ├── .env.example            # 环境变量模板
@@ -37,6 +43,8 @@ claude-agent-starter/
 ```
 
 > 以 `_` 开头的文件是私有模块，不会被 EdgeOne 映射为公开路由。
+>
+> **为什么后端拆成两个目录？** `agents/` 跑的是有状态、长连接的路由（活跃 SSE 流、按会话维度的 abort 信号）；`cloud-functions/` 跑的是只读写 `context.agent.store` 的短小无状态路由。两者拆开之后，历史记录 / 列表 / 删除等操作就不会和正在进行的对话争抢同一会话的锁。
 
 ## 快速开始
 
@@ -70,11 +78,14 @@ edgeone makers build
 
 ## API 接口
 
-| 端点 | 方法 | 说明 |
-|------|------|------|
-| `/chat` | POST | SSE 流式聊天，Header 带 `makers-conversation-id` |
-| `/stop` | POST | 中断正在执行的 agent，Body 传 `{ "conversation_id": "..." }` |
-| `/history` | POST | 获取对话历史，Header 带 `makers-conversation-id` |
+| 端点 | 方法 | 所在目录 | 说明 |
+|------|------|----------|------|
+| `/chat` | POST | `agents/` | SSE 流式聊天，Header 带 `makers-conversation-id` |
+| `/stop` | POST | `agents/` | 中断正在执行的 agent，Body 传 `{ "conversation_id": "..." }` |
+| `/history` | POST | `cloud-functions/` | 获取对话历史，Header 带 `makers-conversation-id` |
+| `/conversations` | POST | `cloud-functions/` | 列出某用户的会话（分页）。Body 传 `{ "user_id": "...", "limit"?: 20, "after"?: "...", "before"?: "...", "order"?: "desc" }` |
+| `/clear-history` | POST | `cloud-functions/` | 清空某会话的全部消息，Body 传 `{ "conversation_id": "..." }` |
+| `/delete-conversation` | POST | `cloud-functions/` | 彻底删除一个会话，Body 传 `{ "conversation_id": "..." }` |
 
 ### SSE 事件
 
@@ -89,13 +100,17 @@ event: done           data: {"stopped":false}
 
 ## 架构
 
-### 后端（`agents/`）
+### 后端（`agents/` + `cloud-functions/`)
+
+`agents/` 是有状态的部分，持有正在进行的 SSE 流以及对应的 AbortSignal：
 
 1. **`context.tools.toClaudeMcpServer()`** — 将 EdgeOne 沙箱工具一键转换为 Claude MCP Server
 2. **`createSdkMcpServer()`** — 向 Claude Agent SDK 注册 MCP Server
 3. **`context.agent.store.claude_session_store()`** — 提供 session 持久化，用于多轮对话记忆
 4. **`query({ prompt, options })`** — 启动 Claude Agent 并流式输出
-5. **`store.appendMessage()`** — 保存用户/助手消息，供 `/history` 恢复
+5. **`store.appendMessage()`** — 保存用户 / 助手消息，方便后续恢复
+
+`cloud-functions/` 负责无状态的会话存储 CRUD（history / conversations / clear-history / delete-conversation）。这些路由直接读写 `context.agent.store`，不会启动 agent，也就不会和正在进行的对话抢同一个会话锁。
 
 ### 前端（`src/`）
 

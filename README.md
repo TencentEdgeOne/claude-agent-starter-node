@@ -20,14 +20,20 @@ A full-stack EdgeOne Makers Agent template powered by Anthropic Claude Agent SDK
 claude-agent-starter/
 ├── src/                    # React + Vite + TypeScript frontend
 │   ├── App.tsx             # Main app (conversation_id management)
-│   ├── api.ts              # /chat, /stop, /history request wrappers
+│   ├── api.ts              # /chat, /stop, /history, /conversations, ... wrappers
 │   └── components/         # ChatWindow, ChatInput, CodeViewer, ToolIndicators, etc.
-├── agents/                 # Node/TS EdgeOne Makers (backend)
+├── agents/                 # Stateful EdgeOne Makers Agent Functions
 │   ├── chat/index.ts       # POST /chat — SSE streaming chat
-│   ├── stop/index.ts       # POST /stop — abort active agent
-│   ├── history/index.ts    # POST /history — conversation history
+│   ├── stop/index.ts       # POST /stop — abort active agent run
 │   ├── _model.ts           # Model & environment variable config
 │   └── _logger.ts          # Logger utility
+├── cloud-functions/        # Stateless EdgeOne Pages Node Functions (read/write the conversation store)
+│   ├── history/index.ts            # POST /history — load conversation messages
+│   ├── conversations/index.ts      # POST /conversations — list a user's conversations
+│   ├── clear-history/index.ts      # POST /clear-history — clear messages of one conversation
+│   ├── delete-conversation/index.ts# POST /delete-conversation — delete a conversation entirely
+│   ├── _logger.ts          # Logger utility
+│   └── _redact.ts          # Sensitive-field redactor for logs
 ├── package.json            # Dependencies (includes Claude Agent SDK)
 ├── edgeone.json            # EdgeOne deployment config
 ├── .env.example            # Environment variables template
@@ -37,6 +43,8 @@ claude-agent-starter/
 ```
 
 > Files prefixed with `_` are private modules — not mapped as public routes by EdgeOne.
+>
+> **Why two backend folders?** `agents/` holds long-running, stateful routes (active SSE streams, per-conversation abort signals); `cloud-functions/` holds short, stateless routes that just read/write `context.agent.store`. Splitting them keeps history/list/delete requests from contending with an active chat for the per-conversation lock.
 
 ## Quick Start
 
@@ -70,11 +78,14 @@ edgeone makers build
 
 ## API Endpoints
 
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/chat` | POST | SSE streaming chat. Header: `makers-conversation-id` |
-| `/stop` | POST | Abort the active agent run. Body: `{ "conversation_id": "..." }` |
-| `/history` | POST | Get conversation history. Header: `makers-conversation-id` |
+| Endpoint | Method | Side | Description |
+|----------|--------|------|-------------|
+| `/chat` | POST | `agents/` | SSE streaming chat. Header: `makers-conversation-id` |
+| `/stop` | POST | `agents/` | Abort the active agent run. Body: `{ "conversation_id": "..." }` |
+| `/history` | POST | `cloud-functions/` | Get conversation history. Header: `makers-conversation-id` |
+| `/conversations` | POST | `cloud-functions/` | List a user's conversations (paginated). Body: `{ "user_id": "...", "limit"?: 20, "after"?: "...", "before"?: "...", "order"?: "desc" }` |
+| `/clear-history` | POST | `cloud-functions/` | Clear all messages of one conversation. Body: `{ "conversation_id": "..." }` |
+| `/delete-conversation` | POST | `cloud-functions/` | Permanently delete a conversation. Body: `{ "conversation_id": "..." }` |
 
 ### SSE Events
 
@@ -89,13 +100,17 @@ event: done           data: {"stopped":false}
 
 ## Architecture
 
-### Backend (`agents/`)
+### Backend (`agents/` + `cloud-functions/`)
+
+`agents/` is where the stateful work happens — it owns the live SSE stream and the AbortSignal for the running model call:
 
 1. **`context.tools.toClaudeMcpServer()`** — Converts EdgeOne sandbox tools into a Claude MCP Server
 2. **`createSdkMcpServer()`** — Registers the MCP server with the Claude Agent SDK
 3. **`context.agent.store.claude_session_store()`** — Provides session persistence for multi-turn memory
 4. **`query({ prompt, options })`** — Launches the Claude Agent with streaming output
-5. **`store.appendMessage()`** — Saves user/assistant messages for `/history` restore
+5. **`store.appendMessage()`** — Saves user/assistant messages so they can be restored later
+
+`cloud-functions/` handles the stateless conversation-store CRUD (history / conversations / clear-history / delete-conversation). They read/write `context.agent.store` directly without spinning up an agent run, so they don't compete with active chats for the per-conversation lock.
 
 ### Frontend (`src/`)
 
