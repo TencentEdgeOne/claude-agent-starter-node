@@ -30,7 +30,6 @@ __pycache__/
 *.egg-info/
 
 # Internal planning docs
-plan/
 
 # AI assistant local instructions
 CLAUDE.md
