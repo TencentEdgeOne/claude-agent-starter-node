@@ -92,11 +92,11 @@ export async function onRequestPost(context: any): Promise<Response> {
   const body = await readJsonBody(context);
   const conversationId = getConversationId(body);
   const userId = getUserId(body);
-  const store = context.agent?.store ?? null;
+  const { store } = context.agent;
 
   logger.log('conversationId:', conversationId, 'userId:', userId || '-');
 
-  if (!store || !conversationId) {
+  if (!conversationId) {
     logger.log(`[history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ conversation_id: conversationId, messages: [] });
   }

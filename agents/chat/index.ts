@@ -100,6 +100,14 @@ function buildAgentOptions(opts?: {
       ...ctxEnv,
       ...collectGatewayEnv(ctxEnv),
     },
+    // DEBUG: forward CLI subprocess stderr (auth errors, model errors, etc.)
+    // to our logger so "Claude Code process exited with code 1" stops being a
+    // black box. Each line goes through logger.error so it ends up in the
+    // dev-server console. Remove or gate behind an env flag once you're done
+    // debugging.
+    stderr: (line: string) => {
+      logger.error('[claude-cli stderr]', line);
+    },
   };
   if (opts?.claudeSessionStore) {
     options.sessionStore = opts.claudeSessionStore;
@@ -132,15 +140,15 @@ export async function onRequest(context: any) {
 
   const signal: AbortSignal | undefined = context.request.signal;
   const conversationId: string = context.conversation_id ?? '';
-  const store = context.store ?? null;
+  const { store } = context;
 
   logger.log(`[request] cid=${conversationId}, uid=${userId ?? '-'}, message="${message.slice(0, 50)}..."`);
 
   // EdgeOne store returns a Claude SDK-compatible SessionStore for transcript persistence.
-  const claudeSessionStore = store?.claude_session_store?.() ?? null;
+  const claudeSessionStore = store.claudeSessionStore();
 
   // Save user message to store (with frontend-generated ID for history alignment)
-  if (store && conversationId) {
+  if (conversationId) {
     try {
       const appendArgs: Record<string, unknown> = {
         conversationId,
@@ -153,11 +161,11 @@ export async function onRequest(context: any) {
     } catch (e) { logger.error('[store] failed to save user message:', e); }
   }
 
-  if (typeof context.tools?.toClaudeMcpServer !== 'function') {
-    throw new Error('context.tools.toClaudeMcpServer is unavailable. Please upgrade the EdgeOne Makers agent runtime.');
+  const { tools } = context;
+  if (typeof tools.toClaudeMcpServer !== 'function') {
+    throw new Error('Upgrade EdgeOne Makers agent runtime: `context.tools.toClaudeMcpServer` is required.');
   }
-
-  const edgeoneMcp = context.tools.toClaudeMcpServer();
+  const edgeoneMcp = tools.toClaudeMcpServer();
 
   const mcpServer = createSdkMcpServer({
     name: edgeoneMcp.name,

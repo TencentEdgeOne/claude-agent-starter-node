@@ -263,12 +263,26 @@ export function createChatStream({
           stopped = true;
           logger.log('[stream] aborted by user');
         } else {
-          logger.error('[stream] error:', error.message);
+          // DEBUG: dump the entire error so the dev-server console shows the
+          // SDK's underlying cause (CLI exit code, gateway 4xx body, etc.) —
+          // not just the surface "process exited with code 1" message.
+          logger.error('[stream] error.name:', error.name);
+          logger.error('[stream] error.message:', error.message);
+          logger.error('[stream] error.stack:', error.stack);
+          const cause = (error as { cause?: unknown }).cause;
+          if (cause !== undefined) {
+            logger.error('[stream] error.cause:', cause);
+            try {
+              logger.error('[stream] error.cause (JSON):', JSON.stringify(cause, null, 2));
+            } catch {
+              // cause not serializable — already dumped raw above.
+            }
+          }
           enqueueSse(controller, encoder, 'error', {
             message: String(error.message ?? e),
             name: error.name || 'Error',
             stack: error.stack,
-            cause: (error as { cause?: unknown }).cause,
+            cause,
           });
         }
       } finally {

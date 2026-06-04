@@ -53,7 +53,7 @@ export async function onRequestPost(context: any): Promise<Response> {
   const body = await readJsonBody(context);
   const conversationId = getConversationId(body);
   const userId = getUserId(body);
-  const store = context.agent?.store ?? null;
+  const { store } = context.agent;
 
   logger.log('conversationId:', conversationId, 'userId:', userId || '-');
 
@@ -63,31 +63,23 @@ export async function onRequestPost(context: any): Promise<Response> {
     return jsonResponse({ status: 'error', message: 'conversation_id is required' }, 400);
   }
 
-  if (!store || typeof store.clearMessages !== 'function') {
-    logger.error('context.agent.store.clearMessages is unavailable');
-    logger.log(`[clear-history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
-    return jsonResponse({ status: 'error', message: 'store.clearMessages is unavailable' }, 501);
-  }
-
   try {
     const clearArgs: Record<string, unknown> = { conversationId };
     if (userId) clearArgs.userId = userId;
     await store.clearMessages(clearArgs);
 
-    if (typeof store.getMessages === 'function') {
-      const getArgs: Record<string, unknown> = {
-        conversationId,
-        limit: 100,
-        order: 'asc',
-      };
-      if (userId) getArgs.userId = userId;
-      const historyAfterClear = await store.getMessages(getArgs);
-      logger.log('[clear-history] history after clear:', {
-        conversationId,
-        count: Array.isArray(historyAfterClear) ? historyAfterClear.length : 0,
-        messages: redactBase64Deep(historyAfterClear),
-      });
-    }
+    const getArgs: Record<string, unknown> = {
+      conversationId,
+      limit: 100,
+      order: 'asc',
+    };
+    if (userId) getArgs.userId = userId;
+    const historyAfterClear = await store.getMessages(getArgs);
+    logger.log('[clear-history] history after clear:', {
+      conversationId,
+      count: Array.isArray(historyAfterClear) ? historyAfterClear.length : 0,
+      messages: redactBase64Deep(historyAfterClear),
+    });
 
     logger.log(`[clear-history] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ status: 'ok', conversation_id: conversationId });

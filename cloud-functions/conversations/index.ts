@@ -5,8 +5,7 @@
  * File path cloud-functions/conversations/index.ts maps to **POST /conversations**.
  *
  * Lists conversations belonging to the requesting user (`eo-uuid`).
- * Calls `context.agent.store.listConversations({ userId, limit, order, after, before })`
- * (or the snake_case `list_conversations` alias when the runtime exposes it),
+ * Calls `context.agent.store.listConversations({ userId, limit, order, after, before })`,
  * then normalizes the runtime result into a stable shape for the frontend:
  *
  * Response:
@@ -237,29 +236,12 @@ export async function onRequestPost(context: any): Promise<Response> {
   const after = pickString(body, 'after', 'cursor');
   const before = pickString(body, 'before');
 
-  const store = context.agent?.store ?? null;
+  const store = context.agent.store;
 
   if (!userId) {
     logger.error('Missing userId');
     logger.log(`[conversations] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ status: 'error', message: 'user_id is required' }, 400);
-  }
-
-  const lister =
-    typeof store?.listConversations === 'function'
-      ? store.listConversations.bind(store)
-      : typeof store?.list_conversations === 'function'
-        ? store.list_conversations.bind(store)
-        : null;
-
-  if (!lister) {
-    logger.error('context.agent.store.listConversations is unavailable');
-    logger.log(`[conversations] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
-    return jsonResponse({
-      status: 'error',
-      message: 'store.listConversations is unavailable',
-      conversations: [],
-    }, 501);
   }
 
   const params: Record<string, unknown> = {
@@ -273,7 +255,7 @@ export async function onRequestPost(context: any): Promise<Response> {
   logger.log('listConversations params:', { userId, limit, order, hasAfter: Boolean(after), hasBefore: Boolean(before) });
 
   try {
-    const result = await lister(params);
+    const result = await store.listConversations(params);
 
     const items = pickList(result);
 
@@ -291,7 +273,7 @@ export async function onRequestPost(context: any): Promise<Response> {
     // therefore need a getMessages lookup to recover the first user question.
     const needsFirstMessage = firstPass.filter(entry => entry.normalized.title === 'New chat');
 
-    if (needsFirstMessage.length > 0 && typeof store?.getMessages === 'function') {
+    if (needsFirstMessage.length > 0) {
       await Promise.all(needsFirstMessage.map(async entry => {
         try {
           const messages = await store.getMessages({

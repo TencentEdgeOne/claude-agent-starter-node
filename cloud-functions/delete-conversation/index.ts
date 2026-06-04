@@ -6,9 +6,9 @@
  * **POST /delete-conversation**.
  *
  * Permanently deletes an entire conversation via
- * `context.agent.store.deleteConversation({ conversationId })` (or the
- * snake_case `delete_conversation` alias). Removes the message index,
- * conversation metadata and the global conversation index — irreversible.
+ * `context.agent.store.deleteConversation({ conversationId })`. Removes the
+ * message index, conversation metadata and the global conversation index —
+ * irreversible.
  *
  * Requires `user_id` (or `userId`) so we don't accidentally delete a
  * conversation that doesn't belong to the requesting browser.
@@ -58,7 +58,7 @@ export async function onRequestPost(context: any): Promise<Response> {
   const body = await readJsonBody(context);
   const conversationId = getConversationId(body);
   const userId = getUserId(body);
-  const store = context.agent?.store ?? null;
+  const { store } = context.agent;
 
   logger.log('conversationId:', conversationId, 'userId:', userId || '-');
 
@@ -68,26 +68,10 @@ export async function onRequestPost(context: any): Promise<Response> {
     return jsonResponse({ status: 'error', message: 'conversation_id is required' }, 400);
   }
 
-  const deleter =
-    typeof store?.deleteConversation === 'function'
-      ? store.deleteConversation.bind(store)
-      : typeof store?.delete_conversation === 'function'
-        ? store.delete_conversation.bind(store)
-        : null;
-
-  if (!deleter) {
-    logger.error('context.agent.store.deleteConversation is unavailable');
-    logger.log(`[delete-conversation] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
-    return jsonResponse(
-      { status: 'error', message: 'store.deleteConversation is unavailable' },
-      501,
-    );
-  }
-
   try {
     const args: Record<string, unknown> = { conversationId };
     if (userId) args.userId = userId;
-    await deleter(args);
+    await store.deleteConversation(args);
 
     logger.log(`[delete-conversation] end: ${new Date().toISOString()}, total: ${Date.now() - startTime}ms`);
     return jsonResponse({ status: 'ok', conversation_id: conversationId });
