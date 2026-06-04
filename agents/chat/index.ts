@@ -59,10 +59,10 @@ async function resolveClaudeSessionBinding(
   }
 
   try {
-    const infoOptions = sessionStore?.load
-      ? { dir: cwd, sessionStore }
-      : { dir: cwd };
-    const info = await getSessionInfo(sessionId, infoOptions);
+    // `dir` is load-bearing even when going through sessionStore: getSessionInfo
+    // derives the project key from `dir`, and the EdgeOne SessionStore namespaces
+    // its blob keys by `projectKey`. Drop `dir` and load() never finds a match.
+    const info = await getSessionInfo(sessionId, { dir: cwd, sessionStore });
     if (info) {
       logger.log(`[session] resume Claude SDK sessionId=${sessionId}`);
       return { resume: sessionId };
