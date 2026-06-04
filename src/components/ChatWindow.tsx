@@ -24,6 +24,16 @@ export default function ChatWindow({ messages, loading }: Props) {
     el.scrollTo({ top: el.scrollHeight, behavior: loading ? 'instant' : 'smooth' });
   }, [messages, loading]);
 
+  /**
+   * Three-dot typing row only fills the "waiting for first token" gap.
+   * Once the assistant bubble has any content (or its own activity sub-indicator),
+   * the in-bubble streaming caret takes over the "still working" signal — so we
+   * never end up with two stacked bot bubbles for the same in-flight turn.
+   */
+  const lastMsg = messages[messages.length - 1];
+  const showTypingIndicator =
+    loading && !(lastMsg?.role === 'assistant' && (lastMsg.content.length > 0 || lastMsg.activity));
+
   return (
     <div ref={windowRef} className={styles.window}>
       {messages.length === 0 && (
@@ -43,8 +53,7 @@ export default function ChatWindow({ messages, loading }: Props) {
         <ChatBubble key={msg.id} message={msg} />
       ))}
 
-      {/* Show typing indicator only when loading and assistant message has no content yet */}
-      {loading && !(messages.length > 0 && messages[messages.length - 1].role === 'assistant' && (messages[messages.length - 1].content.length > 0 || messages[messages.length - 1].activity)) && (
+      {showTypingIndicator && (
         <div className={styles.typingRow}>
           <div className={styles.avatar}>⬡</div>
           <div className={styles.typing}>
