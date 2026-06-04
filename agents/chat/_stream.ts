@@ -21,7 +21,7 @@ interface CreateChatStreamOptions {
 const PROJECT_SKILLS = [
   {
     name: 'sandbox-algorithms',
-    label: '沙箱算法执行',
+    label: 'Sandbox algorithm execution',
     description: 'Run deterministic algorithm scripts through the EdgeOne sandbox code_interpreter and return verified execution results.',
   },
 ];
@@ -250,7 +250,7 @@ export function createChatStream({
           if (msg.type === 'assistant') {
             emitAssistantBlocks(msg, state, controller, encoder, logger, conversationId);
           } else if (msg.type === 'result') {
-            const sessionId = msg.session_id ?? msg.sessionId;
+            const sessionId = msg.session_id;
             if (typeof sessionId === 'string') {
               logger.log('[session] Claude SDK result session_id:', sessionId);
             }
