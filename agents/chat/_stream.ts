@@ -166,8 +166,17 @@ function emitAssistantBlocks(
 
       enqueueSse(controller, encoder, 'tool_called', { tool: toolName });
 
-      // Detect skill loading — Claude SDK uses load_skill tool to activate a skill
-      if (toolName === 'load_skill' || rawToolName.includes('load_skill')) {
+      // Detect skill loading. The Claude Agent SDK's built-in tool is named
+      // `Skill` (capital S, current SDK) but `load_skill` exists as a legacy
+      // alias / short name in some runtime versions. Match both, case-
+      // insensitive on the suffix, so an SDK upgrade or rename doesn't
+      // silently disable the skill UI.
+      const isSkillTool =
+        toolName === 'Skill' ||
+        toolName === 'load_skill' ||
+        rawToolName.includes('load_skill') ||
+        rawToolName.endsWith('Skill');
+      if (isSkillTool) {
         const skillName = toolInput && typeof toolInput === 'object'
           ? (toolInput as Record<string, unknown>).skill ?? (toolInput as Record<string, unknown>).name ?? (toolInput as Record<string, unknown>).skillName
           : undefined;
