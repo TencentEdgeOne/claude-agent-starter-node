@@ -1,7 +1,7 @@
 const zh = {
   // Header
   "app.title": "Claude Agent Starter",
-  "app.subtitle": "基于 EdgeOne 运行，支持沙箱工具、会话记忆和可观测性",
+  "app.subtitle": "基于 EdgeOne Makers 运行，支持沙箱工具、会话记忆和可观测性",
 
   // Empty state
   "empty.title": "Claude Agent Starter",
@@ -10,7 +10,7 @@ const zh = {
 
   // Chat input
   "chat.placeholder": "输入消息...  ⏎ 发送 · Shift+⏎ 换行",
-  "chat.hint": "由 Claude Agent SDK + EdgeOne Sandbox 驱动 · 仅供演示",
+  "chat.hint": "由 Claude Agent SDK + EdgeOne Makers 驱动 · 仅供演示",
 
   // Preset questions
   "preset.1": "使用终端命令检查当前系统时间和操作系统版本。",
