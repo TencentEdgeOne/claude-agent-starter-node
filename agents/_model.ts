@@ -7,7 +7,7 @@
  * All functions accept context.env as parameter instead of reading process.env directly.
  */
 
-const DEFAULT_MODEL = process.env.AI_GATEWAY_MODEL || '@makers/hy3-preview';
+const DEFAULT_MODEL = process.env.AI_GATEWAY_MODEL || '@makers/deepseek-v4-flash';
 
 export function resolveModelName(env: Record<string, string | undefined>): string {
   return env.AI_GATEWAY_MODEL || DEFAULT_MODEL;
