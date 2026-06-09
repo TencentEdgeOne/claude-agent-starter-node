@@ -28,6 +28,10 @@ const zh = {
   "tool.codeRunner": "代码运行",
   "tool.browser": "浏览器",
 
+  // Web search activity (in-bubble chip)
+  "webSearch.error.wsaMissing": "搜索不可用 —— 需要配置 WSA API Key",
+  "webSearch.error.wsaCta": "获取 Key",
+
   // Debug panel
   "debug.title": "Trace",
   "debug.events": "事件",

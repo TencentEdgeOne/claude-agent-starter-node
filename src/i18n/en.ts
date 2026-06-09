@@ -28,6 +28,10 @@ const en = {
   "tool.codeRunner": "Code Runner",
   "tool.browser": "Browser",
 
+  // Web search activity (in-bubble chip)
+  "webSearch.error.wsaMissing": "Web search unavailable — needs a WSA API key",
+  "webSearch.error.wsaCta": "Get a key",
+
   // Status & errors
   "status.error": "Request failed. Please check if the backend service is running.",
   "status.stopped": "⏹ *Generation stopped*",
