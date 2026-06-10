@@ -16,7 +16,7 @@ A minimal, production-shaped starter that wires the Claude Agent SDK into EdgeOn
 - **Sandbox tools via MCP** — `commands`, `files`, `code_interpreter`, `browser` are exposed to Claude as a single MCP server through `context.tools.toClaudeMcpServer()`.
 - **Sticky conversation memory** — Claude transcript stored in `context.agent.store.claude_session_store()`; user/assistant messages mirrored via `store.appendMessage()` for replayable history.
 - **Dual cancellation** — frontend `AbortController` plus backend `context.utils.abortActiveRun()` so `/stop` actually releases the upstream LLM connection.
-- **Two-folder backend** — long-running stateful work in `agents/`, short stateless CRUD in `cloud-functions/`, so history/list/delete requests don't contend with an active chat for the per-conversation lock.
+- **Two-folder backend** — long-running stateful work in `agents/`, short stateless CRUD in `cloud-functions/`, keeping history/list/delete requests off the agents process so they don't compete with an active chat for runtime resources.
 
 ## Environment Variables
 
