@@ -60,6 +60,24 @@ function safeJsonPreview(value: unknown, maxLength = 800): string {
   }
 }
 
+/**
+ * Remove image data URIs from assistant prose before streaming or storing it.
+ *
+ * Tool images are delivered through dedicated `image` SSE events and rendered
+ * as attachments. If the model also writes a Markdown data URI, the frontend
+ * receives a huge base64 blob as normal text. Keep this sanitizer on the
+ * streaming path because history redaction only runs after a page refresh.
+ */
+function sanitizeAssistantText(text: string): string {
+  return text
+    .replace(/!\[[^\]]*]\(\s*data:image\/[^;)\s]+;base64,[A-Za-z0-9+/=]+\s*\)/gi, '')
+    .replace(/!\[[^\]]*]\(\s*data:image\/[^;)\s]+;base64,[\s\S]*$/gi, '')
+    .replace(/data:image\/[^;)\s]+;base64,[A-Za-z0-9+/=]+/gi, '')
+    .replace(/data:image\/[^;)\s]+;base64,[A-Za-z0-9+/=]*$/gi, '')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimStart();
+}
+
 function enqueueSse(
   controller: ReadableStreamDefaultController<Uint8Array>,
   encoder: TextEncoder,
@@ -79,7 +97,26 @@ function emitToolResultImages(
     const toolResults = msg.tool_use_result ?? msg.message?.content ?? [];
     const resultArr = Array.isArray(toolResults) ? toolResults : [toolResults];
     for (const item of resultArr) {
-      // tool_use_result format: [{type: "text", text: "{\"base64Image\": \"...\"}"}]
+      // Shape 1 — Anthropic standard image content block:
+      //   { type: "image", source: { type: "base64", media_type: "image/png", data: "<b64>" } }
+      // EdgeOne's browser screenshot tool, code_interpreter renders, and any
+      // other tool that returns images via the SDK arrive in this shape.
+      // Catching this is what stops the model from inlining a giant
+      // ![](data:image/png;base64,...) blob into the chat text.
+      if (item?.type === 'image' && item?.source?.type === 'base64' && item.source.data) {
+        const base64 = item.source.data as string;
+        const imageId = crypto.randomUUID();
+        const mimeType = (item.source.media_type as string) || 'image/png';
+        const size = base64.length;
+        logger.log('[image] extracted standard image content block, imageId:', imageId, 'size:', size);
+        enqueueSse(controller, encoder, 'image', { imageId, base64, mimeType, size });
+        continue;
+      }
+
+      // Shape 2 — legacy/wrapped JSON inside a text block:
+      //   [{ type: "text", text: '{"base64Image":"<b64>"}' }]
+      // Used by some EdgeOne first-party image tools that return JSON
+      // payloads instead of native image blocks.
       const text = typeof item === 'string' ? item : (item?.text ?? item?.content ?? '');
       if (typeof text === 'string' && text.includes('base64Image')) {
         try {
@@ -137,7 +174,7 @@ function emitAssistantBlocks(
     const block = blocks[idx];
 
     if (block.type === 'text') {
-      const fullText = block.text || '';
+      const fullText = sanitizeAssistantText(block.text || '');
       const alreadySent = state.sentTextLenByBlock.get(idx) ?? 0;
       if (fullText.length > alreadySent) {
         const delta = fullText.slice(alreadySent);
@@ -299,7 +336,7 @@ export function createChatStream({
         // Always save when botMsgId is provided, even if text is empty (image-only turns),
         // so that /history returns this message and frontend can merge images back by ID.
         if (store && conversationId && botMsgId) {
-          const content = state.fullAssistantText.trim() || '[image]';
+          const content = sanitizeAssistantText(state.fullAssistantText).trim() || '[image]';
           try {
             const args: Record<string, unknown> = {
               conversationId, role: 'assistant', content, messageId: botMsgId,
@@ -308,11 +345,12 @@ export function createChatStream({
             await store.appendMessage(args);
           }
           catch (e) { logger.error('[store] failed to save assistant response:', e); }
-        } else if (store && conversationId && state.fullAssistantText.trim()) {
+        } else if (store && conversationId && sanitizeAssistantText(state.fullAssistantText).trim()) {
           // Legacy fallback: no botMsgId but has text content
           try {
+            const content = sanitizeAssistantText(state.fullAssistantText).trim();
             const args: Record<string, unknown> = {
-              conversationId, role: 'assistant', content: state.fullAssistantText,
+              conversationId, role: 'assistant', content,
             };
             if (userId) args.userId = userId;
             await store.appendMessage(args);

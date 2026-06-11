@@ -40,7 +40,8 @@ const SYSTEM_PROMPT =
   '4. If a tool call fails, do not repeat it blindly and do not switch to unrelated operations.\n' +
   '   Briefly explain the failure, adjust the parameters only if the fix is clear, otherwise ask the user for guidance.\n' +
   '5. Do not perform destructive file or shell operations unless the user explicitly asks for them.\n' +
-  '6. If the task can be answered without tools or skills, answer directly and keep the response concise.\n' +
+  '6. If a tool returns an image or screenshot, do not include base64 strings, data:image URLs, or Markdown image links in your text. Briefly say the image is shown in the chat.\n' +
+  '7. If the task can be answered without tools or skills, answer directly and keep the response concise.\n' +
   'When the user explicitly names a project skill, load that skill before doing the task.';
 
 function normalizeUuid(value: string): string | null {
