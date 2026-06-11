@@ -33,6 +33,9 @@ const SYSTEM_PROMPT =
   '  Parameters: op is required; use url for fetch; use selector, text, or script when needed.\n\n' +
   'Available project skills:\n' +
   '- sandbox-algorithms: use this when the user asks to compute or verify deterministic algorithmic results such as Fibonacci sequences, factorials, primes, sorting, combinations, or explicitly asks for sandbox-algorithms.\n\n' +
+  'Filesystem boundary:\n' +
+  '- Use Claude Code Read only for project skill resources under .claude/skills, such as SKILL.md references or scripts needed by a loaded skill.\n' +
+  '- Use the EdgeOne files tool for user workspace files, temporary files, generated artifacts, and all non-skill file operations.\n\n' +
   'Tool-use rules:\n' +
   '1. Use a tool only when it is necessary to answer the user concretely or demonstrate a platform capability.\n' +
   '2. Call tools one at a time and wait for each result before deciding the next step.\n' +
@@ -91,17 +94,29 @@ function buildAgentOptions(opts?: {
   const ctxEnv = opts?.env ?? {};
   const cwd = process.cwd();
   const allowedTools = opts?.allowedTools ?? [];
+  const skillReadAllowRules = [
+    'Read(.claude/skills/**)',
+    `Read(${cwd}/.claude/skills/**)`,
+  ];
   const options: Record<string, any> = {
     model: resolveModelName(ctxEnv),
     systemPrompt: SYSTEM_PROMPT,
     cwd,
-    // Keep Claude Code's built-in tools disabled except for the SDK skill
-    // loader. EdgeOne sandbox tools are exposed separately through MCP below.
-    tools: ['Skill'],
+    // Keep Claude Code's built-in tools narrowly scoped: Skill loads project
+    // skills, and Read may only access skill resources under .claude/skills.
+    // EdgeOne sandbox tools are exposed separately through MCP below.
+    tools: ['Skill', 'Read'],
     allowedTools,
     settingSources: ["project"],
     skills: "all",
-    permissionMode: 'bypassPermissions',
+    permissionMode: 'dontAsk',
+    settings: {
+      permissions: {
+        allow: skillReadAllowRules,
+        defaultMode: 'dontAsk',
+        disableBypassPermissionsMode: 'disable',
+      },
+    },
     maxTurns: 10,
     env: {
       ...ctxEnv,

@@ -165,66 +165,79 @@ export default function CodeViewer() {
             <Va t="edgeoneMcp" /><Op t="." /><Va t="allowedTools" /><Op t="," />
           </L>
           <L n={35}>
-            <I level={2} /><Va t="permissionMode" /><Op t=": " />
-            <Str t="'bypassPermissions'" /><Op t="," />
+            <I level={2} /><Va t="tools" /><Op t=": [" />
+            <Str t="'Skill'" /><Op t=", " /><Str t="'Read'" /><Op t="]," />
           </L>
           <L n={36}>
+            <I level={2} /><Va t="skills" /><Op t=": " />
+            <Str t="'all'" /><Op t="," />
+          </L>
+          <L n={37}>
+            <I level={2} /><Va t="permissionMode" /><Op t=": " />
+            <Str t="'dontAsk'" /><Op t="," />
+          </L>
+          <L n={38}>
+            <I level={2} /><Va t="settings" /><Op t=": { " />
+            <Va t="permissions" /><Op t=": { " />
+            <Va t="allow" /><Op t=": [" /><Str t="'Read(.claude/skills/**)'" /><Op t="] } }," />
+          </L>
+          <L n={39}>
             <I level={2} /><Va t="maxTurns" /><Op t=": " />
             <Va t="10" /><Op t="," />
           </L>
-          <L n={37}>
+          <L n={40}>
             <I level={2} /><Va t="env" /><Op t=": { ..." />
             <Va t="context" /><Op t="." /><Va t="env" /><Op t=" }," />
           </L>
-          <L n={38}>
+          <L n={41}>
             <I /><Op t="}" />
           </L>
-          <L n={39} />
+          <L n={42} />
 
           {/* Step 5 */}
-          <L n={40}>
+          <L n={43}>
             <I /><Cmt t="// 5. Launch Claude Agent" />
           </L>
-          <L n={41}>
+          <L n={44}>
             <I /><Kw t="const " /><Va t="result" /><Op t=" = " />
             <Fn t="query" /><Op t="({ " />
             <Va t="prompt" /><Op t=": " /><Va t="message" /><Op t=", " />
             <Va t="options" /><Op t=" })" />
           </L>
-          <L n={42} />
+          <L n={45} />
 
-          <L n={43}>
+          <L n={46}>
             <I /><Doc t="// SSE streaming details omitted..." />
           </L>
-          <L n={44}>
+          <L n={47}>
             <I /><Kw t="const " /><Va t="assistantText" /><Op t=" = " />
             <Kw t="await " /><Fn t="collectText" /><Op t="(" /><Va t="result" /><Op t=")" />
           </L>
-          <L n={45} />
+          <L n={48} />
 
           {/* Step 6 */}
-          <L n={46}>
+          <L n={49}>
             <I /><Cmt t="// 6. EdgeOne Store: save assistant reply for /history restore" />
           </L>
-          <L n={47}>
+          <L n={50}>
             <I /><Kw t="await " /><Va t="store" /><Op t="?." />
             <Fn t="appendMessage" /><Op t="?.({" />
           </L>
-          <L n={48}>
+          <L n={51}>
             <I level={2} /><Va t="conversationId" /><Op t="," />
           </L>
-          <L n={49}>
+          <L n={52}>
             <I level={2} /><Va t="role" /><Op t=": " /><Str t="'assistant'" /><Op t="," />
           </L>
-          <L n={50}>
+          <L n={53}>
             <I level={2} /><Va t="content" /><Op t=": " /><Va t="assistantText" />
           </L>
-          <L n={51}>
+          <L n={54}>
             <I /><Op t="})" />
           </L>
-          <L n={52} />
+          <L n={55} />
 
-          <L n={53}>
+          <L n={56}>
             <I /><Kw t="return " />
             <Va t="Response" /><Op t="." /><Fn t="json" /><Op t="({ " />
             <Va t="answer" /><Op t=": " /><Va t="assistantText" /><Op t=" })" />
