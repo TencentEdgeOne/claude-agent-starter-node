@@ -67,7 +67,7 @@ claude-agent-starter/
 │   ├── stop/index.ts               # POST /stop — abort active agent run
 │   ├── _model.ts                   # Model & gateway env config (private)
 │   └── _logger.ts                  # Logger utility (private)
-├── cloud-functions/                 # Stateless EdgeOne Pages Node Functions
+├── cloud-functions/                 # Stateless EdgeOne Makers Node Functions
 │   ├── history/index.ts            # POST /history — load conversation messages
 │   ├── conversations/index.ts      # POST /conversations — list a user's conversations
 │   ├── clear-history/index.ts      # POST /clear-history — clear messages of one conversation

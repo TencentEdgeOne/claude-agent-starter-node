@@ -1,5 +1,5 @@
 /**
- * History handler — EdgeOne Pages Node Function
+ * History handler — EdgeOne Makers Node Function
  * ==============================================
  *
  * File path cloud-functions/history/index.ts maps to **POST /history**.
@@ -12,7 +12,7 @@
  * sending large payloads to the frontend. Images are restored from
  * client-side IndexedDB instead.
  *
- * Following the official EdgeOne Pages Node Functions docs:
+ * Following the official EdgeOne Makers Node Functions docs:
  *   - export `onRequestPost` for POST handlers
  *   - read JSON body via `await context.request.json()`
  *   - return a `Response` object

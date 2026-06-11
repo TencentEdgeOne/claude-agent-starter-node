@@ -67,7 +67,7 @@ claude-agent-starter/
 │   ├── stop/index.ts               # POST /stop —— 中断当前 agent
 │   ├── _model.ts                   # 模型与网关环境变量（私有）
 │   └── _logger.ts                  # 日志工具（私有）
-├── cloud-functions/                 # 无状态的 EdgeOne Pages Node Functions
+├── cloud-functions/                 # 无状态的 EdgeOne Makers Node Functions
 │   ├── history/index.ts            # POST /history —— 拉取对话消息
 │   ├── conversations/index.ts      # POST /conversations —— 列出某用户的会话
 │   ├── clear-history/index.ts      # POST /clear-history —— 清空某会话的消息
