@@ -29,7 +29,7 @@ const zh = {
   "tool.browser": "浏览器",
 
   // Web search activity (in-bubble chip)
-  "webSearch.error.wsaMissing": "搜索不可用，需配置 WSA API Key",
+  "webSearch.error.wsaMissing": "搜索不可用，需配置 {0} API Key",
   "webSearch.error.wsaCta": "获取 Key",
 
   // Debug panel
