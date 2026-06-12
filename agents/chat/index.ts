@@ -109,7 +109,7 @@ function buildAgentOptions(opts?: {
     allowedTools,
     settingSources: ["project"],
     skills: "all",
-    permissionMode: 'dontAsk',
+    permissionMode: 'bypassPermissions',
     settings: {
       permissions: {
         allow: skillReadAllowRules,
