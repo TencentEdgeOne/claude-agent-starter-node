@@ -117,16 +117,12 @@ function buildAgentOptions(opts?: {
         disableBypassPermissionsMode: 'disable',
       },
     },
-    maxTurns: 10,
+    maxTurns: 5,
     env: {
       ...ctxEnv,
       ...collectGatewayEnv(ctxEnv),
     },
-    // DEBUG: forward CLI subprocess stderr (auth errors, model errors, etc.)
-    // to our logger so "Claude Code process exited with code 1" stops being a
-    // black box. Each line goes through logger.error so it ends up in the
-    // dev-server console. Remove or gate behind an env flag once you're done
-    // debugging.
+    // Forward Claude CLI stderr to logs for easier debugging.
     stderr: (line: string) => {
       logger.error('[claude-cli stderr]', line);
     },
