@@ -152,6 +152,10 @@ function emitDebugMessage(
   controller: ReadableStreamDefaultController<Uint8Array>,
   encoder: TextEncoder,
 ): void {
+  if (msg.type === 'system' && msg.subtype === 'thinking_tokens') {
+    return;
+  }
+
   if (msg.type !== 'assistant' && msg.type !== 'result') {
     // Use redacted preview for debug messages to avoid base64 pollution
     enqueueSse(controller, encoder, 'debug_msg', {
